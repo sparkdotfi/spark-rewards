@@ -38,6 +38,7 @@ contract Rewards is Ownable {
         bytes32[] calldata merkleProof
     ) external {
         require(merkleRoot == expectedMerkleRoot, "Rewards/merkle-root-was-updated");
+        // TODO: add require account == msg.sender to prevent claiming on behalf of other's accounts
         // Verify the merkle proof
         bytes32 leaf = keccak256(abi.encodePacked(index, account, cumulativeAmount));
         require(MerkleProof.verify(merkleProof, expectedMerkleRoot, leaf), "Rewards/invalid-proof");
