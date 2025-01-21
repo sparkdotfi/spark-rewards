@@ -30,6 +30,16 @@ contract RewardsTest is Test {
         assertEq(distributor.merkleRoot(), newRoot);
     }
 
+    function testSetMerkleRootInvalidSender(address account) public {
+        vm.assume(account != address(this));
+        vm.prank(account);
+        vm.expectRevert(abi.encodeWithSignature(
+            "OwnableUnauthorizedAccount(address)",
+            account
+        ));
+        distributor.setMerkleRoot(0);
+    }
+
     function testClaim() public {
         address account = 0x05fc93DeFFFe436822100E795F376228470FB514;
         uint256 cumulativeAmount = 1000; // First claim 1000 tokens
@@ -51,5 +61,76 @@ contract RewardsTest is Test {
         cumulativeAmount = 1150; // Second claim 1150-1000=150 tokens
         distributor.claim(0, account, cumulativeAmount, newRoot, proof);
         assertEq(distributor.cumulativeClaimed(account), token.balanceOf(account));
+    }
+
+    function testClaimFailInvalidProof() public {
+        address account = 0x05fc93DeFFFe436822100E795F376228470FB514;
+        uint256 cumulativeAmount = 1000;
+
+        bytes32 root = 0x2dae32f7aa8182d9775b5cd13f6b393401158e5bdcdeefaf0b5d22b485887562;
+        distributor.setMerkleRoot(root);
+
+        bytes32[] memory proof = new bytes32[](4);
+        proof[0] = 0x707e172edca3c0d11e8e9d1622319b2c6e3c57f4d683c7256652a46106ace4f6;
+        proof[1] = 0xdcfd854349190e193a15417dc242053133cd95cbe1f893faac582f441529d81b;
+        proof[2] = 0x0f792cfa427891b27d8d125181aed22a78b49cdb5cef6f24f3bd1f7dccca6ead;
+        proof[3] = 0x0000000000000000000000000000000000000000000000000000000000000000;
+
+        vm.expectRevert("Rewards/invalid-proof");
+        distributor.claim(0, account, cumulativeAmount, root, proof);   
+    }
+
+    function testClaimInvalidRoot() public {
+        address account = 0x05fc93DeFFFe436822100E795F376228470FB514;
+        uint256 cumulativeAmount = 1000;
+
+        bytes32 root = 0x2dae32f7aa8182d9775b5cd13f6b393401158e5bdcdeefaf0b5d22b485887562;
+        distributor.setMerkleRoot(root);
+
+        bytes32[] memory proof = new bytes32[](4);
+        proof[0] = 0x707e172edca3c0d11e8e9d1622319b2c6e3c57f4d683c7256652a46106ace4f6;
+        proof[1] = 0xdcfd854349190e193a15417dc242053133cd95cbe1f893faac582f441529d81b;
+        proof[2] = 0x0f792cfa427891b27d8d125181aed22a78b49cdb5cef6f24f3bd1f7dccca6ead;
+        proof[3] = 0x251b6161e3ea1e4abccf0219638c1edf425cc848cff2b3471bbb57f184c2068e;
+
+        bytes32 newRoot = 0x79a7519fc31f8f975fcdb38f9e1c4ead9c3da6db369dcb3d51f32270f088a37b;
+        vm.expectRevert("Rewards/merkle-root-was-updated");
+        distributor.claim(0, account, cumulativeAmount, newRoot, proof);
+    }
+
+    function testClaimInvalidAmount() public {
+        address account = 0x05fc93DeFFFe436822100E795F376228470FB514;
+        uint256 cumulativeAmount = 1001;
+
+        bytes32 root = 0x2dae32f7aa8182d9775b5cd13f6b393401158e5bdcdeefaf0b5d22b485887562;
+        distributor.setMerkleRoot(root);
+
+        bytes32[] memory proof = new bytes32[](4);
+        proof[0] = 0x707e172edca3c0d11e8e9d1622319b2c6e3c57f4d683c7256652a46106ace4f6;
+        proof[1] = 0xdcfd854349190e193a15417dc242053133cd95cbe1f893faac582f441529d81b;
+        proof[2] = 0x0f792cfa427891b27d8d125181aed22a78b49cdb5cef6f24f3bd1f7dccca6ead;
+        proof[3] = 0x251b6161e3ea1e4abccf0219638c1edf425cc848cff2b3471bbb57f184c2068e;
+
+        vm.expectRevert("Rewards/invalid-proof");
+        distributor.claim(0, account, cumulativeAmount, root, proof);
+    }
+
+    function testClaimNothingToClaim() public {
+        address account = 0x05fc93DeFFFe436822100E795F376228470FB514;
+        uint256 cumulativeAmount = 1000;
+
+        bytes32 root = 0x2dae32f7aa8182d9775b5cd13f6b393401158e5bdcdeefaf0b5d22b485887562;
+        distributor.setMerkleRoot(root);
+
+        bytes32[] memory proof = new bytes32[](4);
+        proof[0] = 0x707e172edca3c0d11e8e9d1622319b2c6e3c57f4d683c7256652a46106ace4f6;
+        proof[1] = 0xdcfd854349190e193a15417dc242053133cd95cbe1f893faac582f441529d81b;
+        proof[2] = 0x0f792cfa427891b27d8d125181aed22a78b49cdb5cef6f24f3bd1f7dccca6ead;
+        proof[3] = 0x251b6161e3ea1e4abccf0219638c1edf425cc848cff2b3471bbb57f184c2068e;
+
+        distributor.claim(0, account, cumulativeAmount, root, proof);
+
+        vm.expectRevert("Rewards/nothing-to-claim");
+        distributor.claim(0, account, cumulativeAmount, root, proof);
     }
 }
