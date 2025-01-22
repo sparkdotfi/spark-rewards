@@ -10,18 +10,24 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 contract Rewards is Ownable {
     using SafeERC20 for IERC20;
 
-    address public immutable token; //TODO make contract support multiple tokens as part of merkle tree
     bytes32 public merkleRoot;
+    uint256 public epoch;
 
-    mapping(address => uint256) public cumulativeClaimed;
+    mapping(uint256 => bool) epochEnabled;
+    mapping(address => mapping(uint256 => uint256)) public cumulativeClaimed; // account => epoch => amount
 
     // This event is triggered whenever a call to #setMerkleRoot succeeds.
     event MerkelRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
     // This event is triggered whenever a call to #claim succeeds.
     event Claimed(address indexed account, uint256 amount);
 
-    constructor(address owner, address token_) Ownable(owner) {
-        token = token_;
+    event EpochUpdated(uint256 oldEpoch, uint256 newEpoch);
+
+    event EpochEnabled(uint256 epoch_);
+
+    constructor(address owner) Ownable(owner) {
+        epoch = 1;
+        enableEpoch(epoch);
     }
 
     function setMerkleRoot(bytes32 merkleRoot_) external onlyOwner {
@@ -29,23 +35,44 @@ contract Rewards is Ownable {
         merkleRoot = merkleRoot_;
     }
 
-    //TODO: add token param to the claim function - token must also be added to the merkle tree
+    function incrementEpoch() public onlyOwner {
+        epoch++;
+        enableEpoch(epoch);
+        emit EpochUpdated(epoch - 1, epoch);
+    }
+
+    function enableEpoch(uint256 epoch_) public onlyOwner {
+        epochEnabled[epoch_] = true;
+        emit EpochEnabled(epoch_);
+    }
+
+    function disableEpoch(uint256 epoch_) public onlyOwner {
+        epochEnabled[epoch_] = true;
+    }
+
     function claim(
-        uint256 index,
+        uint256 epoch_,
         address account,
+        address token,
         uint256 cumulativeAmount,
         bytes32 expectedMerkleRoot,
         bytes32[] calldata merkleProof
     ) external {
+        require(account == msg.sender, "Rewards/invalid-account");
         require(merkleRoot == expectedMerkleRoot, "Rewards/merkle-root-was-updated");
-        // TODO: add require account == msg.sender to prevent claiming on behalf of other's accounts
-        // Verify the merkle proof
-        bytes32 leaf = keccak256(abi.encodePacked(index, account, cumulativeAmount));
+        require(epochEnabled[epoch_], "Rewards/epoch-not-enabled");
+
+        // Construct the leaf
+        // See https://github.com/OpenZeppelin/merkle-tree?tab=readme-ov-file#validating-a-proof-in-solidity for more info
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(epoch_, account, token, cumulativeAmount))));
+
+        // Verify the proof
         require(MerkleProof.verify(merkleProof, expectedMerkleRoot, leaf), "Rewards/invalid-proof");
+        
         // Mark it claimed
-        uint256 preclaimed = cumulativeClaimed[account];
+        uint256 preclaimed = cumulativeClaimed[account][epoch_];
         require(preclaimed < cumulativeAmount, "Rewards/nothing-to-claim");
-        cumulativeClaimed[account] = cumulativeAmount;
+        cumulativeClaimed[account][epoch_] = cumulativeAmount;
 
         // Send the token
         unchecked {
