@@ -13,7 +13,7 @@ contract Rewards is Ownable {
     bytes32 public merkleRoot;
     uint256 public epoch;
 
-    mapping(uint256 => bool) epochEnabled;
+    mapping(uint256 => bool) public epochEnabled;
     mapping(address => mapping(uint256 => uint256)) public cumulativeClaimed; // account => epoch => amount
 
     // This event is triggered whenever a call to #setMerkleRoot succeeds.
@@ -47,7 +47,7 @@ contract Rewards is Ownable {
     }
 
     function disableEpoch(uint256 epoch_) public onlyOwner {
-        epochEnabled[epoch_] = true;
+        epochEnabled[epoch_] = false;
     }
 
     function claim(
