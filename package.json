@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@openzeppelin/merkle-tree": "^1.0.7",
+    "ethers": "^5.7.2"
+  }
+}
