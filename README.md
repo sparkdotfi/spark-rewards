@@ -21,5 +21,26 @@ forge build
 forge test
 ```
 
+## Generate Merkle Tree Script
+
+This script generates a Merkle Tree from a rewards JSON file and outputs the tree structure, proofs, and root to a specified folder.
+
+### Prerequisites
+
+1. **Install Node.js**: Ensure Node.js is installed. Download it from [Node.js](https://nodejs.org/).
+2. **Install Dependencies**:
+   ```bash
+   npm install
+    ```
+3. **Run the Script**: 
+   ```bash
+   cd merkle-tree-scripts
+   node generateMerkleTree.js <inputFilePath> <outputFilePath>
+   ```
+   - Example:
+        ```bash
+        node generateMerkleTree.js input/example1.json output/merkleTree.json
+        ```
+
 ***
 *The IP in this repository was assigned to Mars SPC Limited in respect of the MarsOne SP*
