@@ -10,12 +10,15 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 contract Rewards is Ownable {
     using SafeERC20 for IERC20;
 
+    address public wallet;
     bytes32 public merkleRoot;
     uint256 public epoch;
 
     mapping(uint256 => bool) public epochEnabled;
     mapping(address => mapping(uint256 => uint256)) public cumulativeClaimed; // account => epoch => amount
 
+    // This event is triggered whenever a call to #setWallet succeeds.
+    event WalletUpdated(address oldWallet, address newWallet);
     // This event is triggered whenever a call to #setMerkleRoot succeeds.
     event MerkelRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
     // This event is triggered whenever a call to #claim succeeds.
@@ -31,6 +34,9 @@ contract Rewards is Ownable {
     }
 
     /* ========== ADMIN FUNCTIONS ========== */
+    function setWallet(address wallet_) public onlyOwner {
+        wallet = wallet_;
+    }
     function setMerkleRoot(bytes32 merkleRoot_) external onlyOwner {
         emit MerkelRootUpdated(merkleRoot, merkleRoot_);
         merkleRoot = merkleRoot_;
@@ -79,7 +85,7 @@ contract Rewards is Ownable {
         // Send the token
         unchecked {
             uint256 amount = cumulativeAmount - preclaimed;
-            IERC20(token).safeTransfer(account, amount); // TODO pull token from a multisig
+            IERC20(token).safeTransferFrom(wallet, account, amount);
             emit Claimed(account, amount);
         }
     }
