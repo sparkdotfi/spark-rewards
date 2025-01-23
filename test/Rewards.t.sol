@@ -18,8 +18,11 @@ contract RewardsTest is Test {
     Rewards public distributor;
     IERC20 public token1; // 0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f
     IERC20 public token2; // 0x2e234DAe75C793f67A35089C9d99245E1C58470b
+    uint256 public valuesLength; // Size of merkle values array of file 1
+    string filePath1 = "test/data/exampleTree1.json"; // change this to the path of the file
+    string filePath2 = "test/data/exampleTree2.json";
 
-    struct Reward {
+    struct Leaf {
         uint256 epoch;
         address account;
         address token;
@@ -33,14 +36,16 @@ contract RewardsTest is Test {
         distributor = new Rewards(address(this));
         token1.transfer(address(distributor), 1_000_000 * 1e18);
         token2.transfer(address(distributor), 1_000_000 * 1e18);
-        distributor.enableEpoch(2);
+        distributor.enableEpoch(2); // These two epochs are included in the test files.
         distributor.enableEpoch(3);
+        string memory json = vm.readFile(filePath1);
+        valuesLength = getValuesLength(json); // Number of claimers in the test files
     }
 
     function parseMerkleRoot(string memory json) public pure returns (bytes32) {
         return vm.parseJsonBytes32(json, ".root");
     }
-    function parseReward(uint256 index, string memory json) public pure returns (Reward memory) {
+    function parseLeaf(uint256 index, string memory json) public pure returns (Leaf memory) {
         // Use the index parameter to dynamically access the values
         string memory indexPath = string(abi.encodePacked(".values[", vm.toString(index), "]"));
 
@@ -57,16 +62,15 @@ contract RewardsTest is Test {
             (bytes32[])
         );
 
-        return Reward(epoch, account, token, cumulativeAmount, proof);
+        return Leaf(epoch, account, token, cumulativeAmount, proof);
     }
 
-    // function getValuesLength(string memory json) public pure returns (uint256) {
-    //     // Parse the values array
-    //     bytes memory valuesArray = vm.parseJson(json, ".values");
-    //     // Decode the array to get its length
-    //     return abi.decode(valuesArray, (bytes[])).length;
-    // }
+    function getValuesLength(string memory json) public pure returns (uint256) {
+        // Parse the totalClaims directly from the JSON file
+        return vm.parseJsonUint(json, ".totalClaims")-1;
+    }
 
+    /* ========== ADMIN FUNCTIONS ========== */
     function testIncrementEpoch() public {
         uint256 oldEpoch = distributor.epoch();
         distributor.incrementEpoch();
@@ -123,57 +127,136 @@ contract RewardsTest is Test {
         distributor.setMerkleRoot(0);
     }
 
+    /* ========== CLAIM TESTS ========== */
     function testClaimFromFile(uint256 index) public {
-        index = bound(index, 0, 11);
+        index = bound(index, 0, valuesLength);
 
-        string memory json = vm.readFile("test/data/exampleTree1.json");
+        string memory json = vm.readFile(filePath1);
         bytes32 root = parseMerkleRoot(json);
-        Reward memory reward = parseReward(index, json);
+        Leaf memory leaf = parseLeaf(index, json);
         
         distributor.setMerkleRoot(root);
 
-        vm.prank(reward.account);
-        distributor.claim(reward.epoch, reward.account, reward.token, reward.cumulativeAmount, root, reward.proof);
-        assertEq(distributor.cumulativeClaimed(reward.account, reward.epoch), IERC20(reward.token).balanceOf(reward.account));
+        vm.prank(leaf.account);
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
     }
 
     function testClaimCumulativeFromFile(uint256 index) public {
         // Note both files being imported in this test must keep the same ordering of rewards to work
-        index = bound(index, 0, 11);
-        string memory json = vm.readFile("test/data/exampleTree1.json");
+        index = bound(index, 0, valuesLength);
+        string memory json = vm.readFile(filePath1);
         bytes32 root = parseMerkleRoot(json);
-        Reward memory reward = parseReward(index, json);
+        Leaf memory leaf = parseLeaf(index, json);
         
         distributor.setMerkleRoot(root);
 
-        vm.prank(reward.account);
-        distributor.claim(reward.epoch, reward.account, reward.token, reward.cumulativeAmount, root, reward.proof);
-        assertEq(distributor.cumulativeClaimed(reward.account, reward.epoch), IERC20(reward.token).balanceOf(reward.account));
+        vm.prank(leaf.account);
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
 
-        json = vm.readFile("test/data/exampleTree2.json");
+        json = vm.readFile(filePath2);
         root = parseMerkleRoot(json);
-        reward = parseReward(index, json);
+        leaf = parseLeaf(index, json);
 
         distributor.setMerkleRoot(root);
-        vm.prank(reward.account);
-        distributor.claim(reward.epoch, reward.account, reward.token, reward.cumulativeAmount, root, reward.proof);
-        assertEq(distributor.cumulativeClaimed(reward.account, reward.epoch), IERC20(reward.token).balanceOf(reward.account));
+        vm.prank(leaf.account);
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
     }
 
-    function testClaimFromFileInvalidEpoch(uint256 index) public {
-        index = bound(index, 0, 11);
+    function testClaimFailInvalidAccountFromFile(uint256 index, address account) public {
+        index = bound(index, 0, valuesLength);
 
-        string memory json = vm.readFile("test/data/exampleTree1.json");
+        string memory json = vm.readFile(filePath1);
         bytes32 root = parseMerkleRoot(json);
-        Reward memory reward = parseReward(index, json);
+        Leaf memory leaf = parseLeaf(index, json);
+        vm.assume(leaf.account != account);
         
         distributor.setMerkleRoot(root);
-        distributor.disableEpoch(reward.epoch);
-        vm.prank(reward.account);
-        vm.expectRevert("Rewards/epoch-not-enabled");
-        distributor.claim(reward.epoch, reward.account, reward.token, reward.cumulativeAmount, root, reward.proof);
+
+        vm.prank(account);
+        vm.expectRevert("Rewards/invalid-account");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+    }
+    function testClaimFailInvalidProofFromFile(uint256 index, bytes32 proof) public {
+        index = bound(index, 0, valuesLength);
+
+        string memory json = vm.readFile(filePath1);
+        bytes32 root = parseMerkleRoot(json);
+        Leaf memory leaf = parseLeaf(index, json);
+        leaf.proof[0] = proof;
+        
+        distributor.setMerkleRoot(root);
+
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/invalid-proof");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
+    function testClaimInvalidRootFromFile(uint256 index, bytes32 newRoot_) public {
+        index = bound(index, 0, valuesLength);
+
+        string memory json = vm.readFile(filePath1);
+        bytes32 root = parseMerkleRoot(json);
+        vm.assume(root != newRoot_);
+
+        Leaf memory leaf = parseLeaf(index, json);
+        
+        distributor.setMerkleRoot(newRoot_);
+
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/merkle-root-was-updated");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+    }
+
+    function testClaimInvalidAmountFromFile(uint256 index, uint256 amount) public {
+        vm.assume(amount != 1000000000000000000000);
+        index = bound(index, 0, valuesLength);
+
+        string memory json = vm.readFile(filePath1);
+        bytes32 root = parseMerkleRoot(json);
+        Leaf memory leaf = parseLeaf(index, json);
+        leaf.cumulativeAmount = amount;
+        
+        distributor.setMerkleRoot(root);
+
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/invalid-proof");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+    }
+
+    function testClaimInvalidEpochFromFile(uint256 index) public {
+        index = bound(index, 0, valuesLength);
+
+        string memory json = vm.readFile(filePath1);
+        bytes32 root = parseMerkleRoot(json);
+        Leaf memory leaf = parseLeaf(index, json);
+        
+        distributor.setMerkleRoot(root);
+        distributor.disableEpoch(leaf.epoch);
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/epoch-not-enabled");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+    }
+
+    function testNothingToClaimFromFile(uint256 index) public {
+        index = bound(index, 0, valuesLength);
+
+        string memory json = vm.readFile(filePath1);
+        bytes32 root = parseMerkleRoot(json);
+        Leaf memory leaf = parseLeaf(index, json);
+        
+        distributor.setMerkleRoot(root);
+
+        vm.startPrank(leaf.account);
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
+        vm.expectRevert("Rewards/nothing-to-claim");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+    }
+
+    // Hardcoded merkle tree tests to sanity check against the file tests
     function testClaim() public {
         bytes32 root = 0xdf1c8acd41bc6fbedd45b9ac771e141b06ed63450154099d2107ca6b7c60f3b4;
 
@@ -233,7 +316,7 @@ contract RewardsTest is Test {
         assertEq(distributor.cumulativeClaimed(account, epoch), IERC20(token).balanceOf(account));
     }
 
-    function testClaimFailInvalidProof() public {
+    function testClaimInvalidAccount(address account_) public {
         bytes32 root = 0xdf1c8acd41bc6fbedd45b9ac771e141b06ed63450154099d2107ca6b7c60f3b4;
 
         uint256 epoch = 1;
@@ -245,7 +328,32 @@ contract RewardsTest is Test {
         proof[0] = 0x76f6509713b1c5f1badb44e594485cccf676833f7a1eb10ec22a80905ec00194;
         proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
         proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
-        proof[3] = 0x0000000000000000000000000000000000000000000000000000000000000000;
+        proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
+        
+        distributor.setMerkleRoot(root);
+
+        vm.assume(account_ != account);
+        vm.prank(account_);
+        vm.expectRevert("Rewards/invalid-account");
+        distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
+    }
+
+    function testClaimFailInvalidProof(bytes32 proof_) public {
+        bytes32 root = 0xdf1c8acd41bc6fbedd45b9ac771e141b06ed63450154099d2107ca6b7c60f3b4;
+
+        uint256 epoch = 1;
+        address account = 0x1111111111111111111111111111111111111111;
+        address token = 0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
+        uint256 cumulativeAmount = 1000000000000000000000; // First claim 1000 tokens
+
+        bytes32[] memory proof = new bytes32[](4);
+        proof[0] = 0x76f6509713b1c5f1badb44e594485cccf676833f7a1eb10ec22a80905ec00194;
+        proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
+        proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
+        proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
+        
+        vm.assume(proof_ != proof[3]);
+        proof[3] = proof_;
 
         distributor.setMerkleRoot(root);
 
@@ -286,7 +394,7 @@ contract RewardsTest is Test {
         uint256 epoch = 1;
         address account = 0x1111111111111111111111111111111111111111;
         address token = 0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
-        uint256 cumulativeAmount = amount; // First claim 1000 tokens
+        uint256 cumulativeAmount = amount;
 
         bytes32[] memory proof = new bytes32[](4);
         proof[0] = 0x76f6509713b1c5f1badb44e594485cccf676833f7a1eb10ec22a80905ec00194;
@@ -301,7 +409,30 @@ contract RewardsTest is Test {
         distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
     }
 
-    function testClaimNothingToClaim() public {
+    function testClaimInvalidEpoch(uint256 epoch_) public {
+
+        bytes32 root = 0xdf1c8acd41bc6fbedd45b9ac771e141b06ed63450154099d2107ca6b7c60f3b4;
+
+        uint256 epoch = epoch_;
+        address account = 0x1111111111111111111111111111111111111111;
+        address token = 0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
+        uint256 cumulativeAmount = 1000000000000000000000;
+
+        bytes32[] memory proof = new bytes32[](4);
+        proof[0] = 0x76f6509713b1c5f1badb44e594485cccf676833f7a1eb10ec22a80905ec00194;
+        proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
+        proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
+        proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
+        
+        distributor.setMerkleRoot(root);
+        distributor.disableEpoch(epoch);
+
+        vm.prank(account);
+        vm.expectRevert("Rewards/epoch-not-enabled");
+        distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
+    }
+
+    function testNothingToClaim() public {
         bytes32 root = 0xdf1c8acd41bc6fbedd45b9ac771e141b06ed63450154099d2107ca6b7c60f3b4;
 
         uint256 epoch = 1;
