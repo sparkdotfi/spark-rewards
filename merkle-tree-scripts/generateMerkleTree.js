@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path'); // For handling file paths
 const { BigNumber } = require('ethers');
 
-// Helper function to hash a leaf
-function hashLeaf(epoch, account, token, cumulativeAmount) {
+// Helper function to structure the leaf data
+function leaf(epoch, account, token, cumulativeAmount) {
     return [
         epoch.toString(),
         account.toString(),
@@ -26,7 +26,7 @@ function generateMerkleTree(rewards) {
     // Map rewards to structured leaves
     const tree = StandardMerkleTree.of(
         rewards.map(({ epoch, account, token, cumulativeAmount }) =>
-            hashLeaf(epoch, account, token, cumulativeAmount)
+            leaf(epoch, account, token, cumulativeAmount)
         ),
         ["uint256", "address", "address", "uint256"]
     );
@@ -55,24 +55,6 @@ function readRewardsData(filePath) {
     const data = fs.readFileSync(filePath, 'utf8');
     return JSON.parse(data);
 }
-
-// Example usage
-// (async () => {
-//     // Read rewards data from a JSON file
-//     const rewardsFilePath = './rewards.json';
-//     const rewards = readRewardsData(rewardsFilePath);
-
-//     // Generate the Merkle Tree
-//     const { root, tree } = generateMerkleTree(rewards);
-
-//     console.log("Merkle Root:", root);
-
-//     // Write the Merkle Tree data to a JSON file
-//     const outputFilePath = './merkleTree.json';
-//     writeMerkleTreeToFile(outputFilePath, tree, rewards);
-
-//     console.log("Merkle tree and proofs written to:", outputFilePath);
-// })();
 
 (async () => {
     const args = process.argv.slice(2);
