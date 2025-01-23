@@ -20,9 +20,9 @@ contract Rewards is Ownable {
     event MerkelRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
     // This event is triggered whenever a call to #claim succeeds.
     event Claimed(address indexed account, uint256 amount);
-
+    // This event is triggered whenever a call to #incrementEpoch succeeds.
     event EpochUpdated(uint256 oldEpoch, uint256 newEpoch);
-
+    // This event is triggered whenever a call to #enableEpoch succeeds.
     event EpochEnabled(uint256 epoch_);
 
     constructor(address owner) Ownable(owner) {
@@ -30,6 +30,7 @@ contract Rewards is Ownable {
         enableEpoch(epoch);
     }
 
+    /* ========== ADMIN FUNCTIONS ========== */
     function setMerkleRoot(bytes32 merkleRoot_) external onlyOwner {
         emit MerkelRootUpdated(merkleRoot, merkleRoot_);
         merkleRoot = merkleRoot_;
@@ -50,6 +51,7 @@ contract Rewards is Ownable {
         epochEnabled[epoch_] = false;
     }
 
+    /* ========== USER FUNCTIONS ========== */
     function claim(
         uint256 epoch_,
         address account,
