@@ -1,5 +1,7 @@
 {
   "root": "0xdf1c8acd41bc6fbedd45b9ac771e141b06ed63450154099d2107ca6b7c60f3b4",
+  "totalAmount": "7900000000000000000000",
+  "totalClaims": 12,
   "values": [
     {
       "epoch": 1,
