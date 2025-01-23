@@ -37,7 +37,11 @@ forge test
 ### 3. **Cumulative Claim Tracking**
    - The Merkle root can be updated, with claims tracked cumulatively across epochs.
 
-### 4. **Admin Controls**
+### 4. **External Wallet For Rewards**
+   - The contract pulls tokens from a specified wallet for claims.
+   - Administrators can set or update the wallet address.
+
+### 5. **Admin Controls**
    - Only the owner can:
      - Update the Merkle root.
      - Manage epoch status (enable/disable).
@@ -47,19 +51,23 @@ forge test
 ## Functions
 
 ### **Admin Functions**
-1. `setMerkleRoot(bytes32 merkleRoot_)`
+1. `setWallet(address wallet_)`
+   - Sets or updates the wallet address from which tokens are pulled for claims.
+   - Accessible only to the contract owner.
+
+2. `setMerkleRoot(bytes32 merkleRoot_)`
    - Updates the Merkle root for claims verification.
    - Emits a `MerkelRootUpdated` event.
 
-2. `incrementEpoch()`
+3. `incrementEpoch()`
    - Increments the current epoch and enables the new epoch for claims.
    - Emits an `EpochUpdated` event.
 
-3. `enableEpoch(uint256 epoch_)`
+4. `enableEpoch(uint256 epoch_)`
    - Enables an epoch for claims.
    - Emits an `EpochEnabled` event.
 
-4. `disableEpoch(uint256 epoch_)`
+5. `disableEpoch(uint256 epoch_)`
    - Disables an epoch to prevent claims.
 
 ---
@@ -72,22 +80,25 @@ forge test
      - Current Merkle root.
      - A Merkle proof.
    - Ensures users cannot claim more than their entitled amount.
+   - Tokens are transferred from the `wallet` to the claimer's address.
    - Emits a `Claimed` event upon success.
 
 ---
 
 ## Events
+1. **`WalletUpdated(address oldWallet, address newWallet)`**
+   - Emitted when the wallet holding rewards is updated by the admin.
 
-1. **`MerkelRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot)`**
+2. **`MerkelRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot)`**
    - Emitted when the Merkle root is updated by the admin.
 
-2. **`EpochUpdated(uint256 oldEpoch, uint256 newEpoch)`**
+3. **`EpochUpdated(uint256 oldEpoch, uint256 newEpoch)`**
    - Emitted when the epoch is incremented.
 
-3. **`EpochEnabled(uint256 epoch_)`**
+4. **`EpochEnabled(uint256 epoch_)`**
    - Emitted when an epoch is enabled for claims.
 
-4. **`Claimed(address indexed account, uint256 amount)`**
+5. **`Claimed(address indexed account, uint256 amount)`**
    - Emitted when a user successfully claims tokens.
 
 ---
@@ -95,6 +106,7 @@ forge test
 ## Example Claim Workflow
 
 1. **Admin**:
+   - Sets the `wallet` address. Requires approval.
    - Updates the Merkle root with eligible claims.
    - Enables the current epoch.
 
