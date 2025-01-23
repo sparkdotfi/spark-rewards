@@ -12,9 +12,8 @@ contract Rewards is Ownable {
 
     address public wallet;
     bytes32 public merkleRoot;
-    uint256 public epoch;
 
-    mapping(uint256 => bool) public epochEnabled;
+    mapping(uint256 => bool) public epochClosed;
     mapping(address => mapping(uint256 => uint256)) public cumulativeClaimed; // account => epoch => amount
 
     // This event is triggered whenever a call to #setWallet succeeds.
@@ -25,13 +24,10 @@ contract Rewards is Ownable {
     event Claimed(address indexed account, uint256 amount);
     // This event is triggered whenever a call to #incrementEpoch succeeds.
     event EpochUpdated(uint256 oldEpoch, uint256 newEpoch);
-    // This event is triggered whenever a call to #enableEpoch succeeds.
-    event EpochEnabled(uint256 epoch_);
+    // This event is triggered whenever a call to #setEpochClosed succeeds.
+    event EpochIsClosed(uint256 epoch, bool isClosed);
 
-    constructor(address owner) Ownable(owner) {
-        epoch = 1;
-        enableEpoch(epoch);
-    }
+    constructor(address owner) Ownable(owner) { }
 
     /* ========== ADMIN FUNCTIONS ========== */
     function setWallet(address wallet_) public onlyOwner {
@@ -42,24 +38,14 @@ contract Rewards is Ownable {
         merkleRoot = merkleRoot_;
     }
 
-    function incrementEpoch() public onlyOwner {
-        epoch++;
-        enableEpoch(epoch);
-        emit EpochUpdated(epoch - 1, epoch);
-    }
-
-    function enableEpoch(uint256 epoch_) public onlyOwner {
-        epochEnabled[epoch_] = true;
-        emit EpochEnabled(epoch_);
-    }
-
-    function disableEpoch(uint256 epoch_) public onlyOwner {
-        epochEnabled[epoch_] = false;
+    function setEpochClosed(uint256 epoch, bool isClosed) public onlyOwner {
+        epochClosed[epoch] = isClosed;
+        emit EpochIsClosed(epoch, isClosed);
     }
 
     /* ========== USER FUNCTIONS ========== */
     function claim(
-        uint256 epoch_,
+        uint256 epoch,
         address account,
         address token,
         uint256 cumulativeAmount,
@@ -68,19 +54,19 @@ contract Rewards is Ownable {
     ) external {
         require(account == msg.sender, "Rewards/invalid-account");
         require(merkleRoot == expectedMerkleRoot, "Rewards/merkle-root-was-updated");
-        require(epochEnabled[epoch_], "Rewards/epoch-not-enabled");
+        require(!epochClosed[epoch], "Rewards/epoch-not-enabled");
 
         // Construct the leaf
         // See https://github.com/OpenZeppelin/merkle-tree?tab=readme-ov-file#validating-a-proof-in-solidity for more info
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(epoch_, account, token, cumulativeAmount))));
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(epoch, account, token, cumulativeAmount))));
 
         // Verify the proof
         require(MerkleProof.verify(merkleProof, expectedMerkleRoot, leaf), "Rewards/invalid-proof");
         
         // Mark it claimed
-        uint256 preclaimed = cumulativeClaimed[account][epoch_];
+        uint256 preclaimed = cumulativeClaimed[account][epoch];
         require(preclaimed < cumulativeAmount, "Rewards/nothing-to-claim");
-        cumulativeClaimed[account][epoch_] = cumulativeAmount;
+        cumulativeClaimed[account][epoch] = cumulativeAmount;
 
         // Send the token
         unchecked {

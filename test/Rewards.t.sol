@@ -38,8 +38,6 @@ contract RewardsTest is Test {
 
         distributor = new Rewards(address(this));
         distributor.setWallet(address(wallet));
-        distributor.enableEpoch(2); // These two epochs are included in the test files.
-        distributor.enableEpoch(3);
 
         token1.transfer(address(wallet), 1_000_000 * 1e18);
         token2.transfer(address(wallet), 1_000_000 * 1e18);
@@ -94,45 +92,17 @@ contract RewardsTest is Test {
         distributor.setWallet(account);
     }
 
-    function testIncrementEpoch() public {
-        uint256 oldEpoch = distributor.epoch();
-        distributor.incrementEpoch();
-        assertEq(distributor.epoch(), oldEpoch + 1);
+    function testSetEpochClosed(uint256 epoch) public {
+        distributor.setEpochClosed(epoch, true);
+        assert(distributor.epochClosed(epoch));
     }
 
-    function testIncrementEpochOnlyOwner(address account) public {
+    function testSetEpochClosedOnlyOwner(address account, uint256 epoch) public {
         vm.assume(account != address(this));
         vm.prank(account);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", account));
-        distributor.incrementEpoch();
+        distributor.setEpochClosed(epoch, true);
     }
-
-    function testEnableEpoch() public {
-        uint256 epoch = distributor.epoch() + 1;
-        distributor.enableEpoch(epoch);
-        assert(distributor.epochEnabled(epoch));
-    }
-    
-    function testEnableEpochOnlyOwner(address account) public {
-        vm.assume(account != address(this));
-        vm.prank(account);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", account));
-        distributor.enableEpoch(1);
-    }
-
-    function testDisableEpoch() public {
-        uint256 epoch = distributor.epoch();
-        distributor.disableEpoch(epoch);
-        assert(!distributor.epochEnabled(epoch));
-    }
-
-    function testDisableEpochOnlyOwner(address account) public {
-        vm.assume(account != address(this));
-        vm.prank(account);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", account));
-        distributor.disableEpoch(1);
-    }
-
 
     function testSetMerkleRoot(string memory seed) public {
         bytes32 newRoot = keccak256(abi.encodePacked(seed));
@@ -257,7 +227,7 @@ contract RewardsTest is Test {
         Leaf memory leaf = parseLeaf(index, json);
         
         distributor.setMerkleRoot(root);
-        distributor.disableEpoch(leaf.epoch);
+        distributor.setEpochClosed(leaf.epoch, true);
         vm.prank(leaf.account);
         vm.expectRevert("Rewards/epoch-not-enabled");
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
@@ -448,7 +418,7 @@ contract RewardsTest is Test {
         proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
         
         distributor.setMerkleRoot(root);
-        distributor.disableEpoch(epoch);
+        distributor.setEpochClosed(epoch, true);
 
         vm.prank(account);
         vm.expectRevert("Rewards/epoch-not-enabled");
