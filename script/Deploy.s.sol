@@ -5,7 +5,6 @@ import {Script, console} from "forge-std/Script.sol";
 import {Rewards} from "../src/Rewards.sol";
 
 contract Deploy is Script {
-
     function run() external {
         vm.startBroadcast();
         Rewards rewards = new Rewards(msg.sender); //TODO: change this to read admin from a file

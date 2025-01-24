@@ -14,7 +14,6 @@ contract Token is ERC20 {
 }
 
 contract RewardsTest is Test {
-
     Rewards public distributor;
     IERC20 public token1; // 0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f
     IERC20 public token2; // 0x2e234DAe75C793f67A35089C9d99245E1C58470b
@@ -22,7 +21,6 @@ contract RewardsTest is Test {
     string filePath1 = "test/data/exampleTree1.json"; // change this to the path of the file
     string filePath2 = "test/data/exampleTree2.json";
     address wallet = 0x1234123412341234123412341234123412341234;
-
 
     struct Leaf {
         uint256 epoch;
@@ -54,6 +52,7 @@ contract RewardsTest is Test {
     function parseMerkleRoot(string memory json) public pure returns (bytes32) {
         return vm.parseJsonBytes32(json, ".root");
     }
+
     function parseLeaf(uint256 index, string memory json) public pure returns (Leaf memory) {
         // Use the index parameter to dynamically access the values
         string memory indexPath = string(abi.encodePacked(".values[", vm.toString(index), "]"));
@@ -61,22 +60,19 @@ contract RewardsTest is Test {
         uint256 epoch = uint256(vm.parseJsonUint(json, string(abi.encodePacked(indexPath, ".epoch"))));
         address account = vm.parseJsonAddress(json, string(abi.encodePacked(indexPath, ".account")));
         address token = vm.parseJsonAddress(json, string(abi.encodePacked(indexPath, ".token")));
-        uint256 cumulativeAmount = uint256(
-            vm.parseJsonUint(json, string(abi.encodePacked(indexPath, ".cumulativeAmount")))
-        );
+        uint256 cumulativeAmount =
+            uint256(vm.parseJsonUint(json, string(abi.encodePacked(indexPath, ".cumulativeAmount"))));
 
         // Parse the proof
-        bytes32[] memory proof = abi.decode(
-            vm.parseJson(json, string(abi.encodePacked(indexPath, ".proof"))),
-            (bytes32[])
-        );
+        bytes32[] memory proof =
+            abi.decode(vm.parseJson(json, string(abi.encodePacked(indexPath, ".proof"))), (bytes32[]));
 
         return Leaf(epoch, account, token, cumulativeAmount, proof);
     }
 
     function getValuesLength(string memory json) public pure returns (uint256) {
         // Parse the totalClaims directly from the JSON file
-        return vm.parseJsonUint(json, ".totalClaims")-1;
+        return vm.parseJsonUint(json, ".totalClaims") - 1;
     }
 
     /* ========== ADMIN FUNCTIONS ========== */
@@ -113,10 +109,7 @@ contract RewardsTest is Test {
     function testSetMerkleRootInvalidSender(address account) public {
         vm.assume(account != address(this));
         vm.prank(account);
-        vm.expectRevert(abi.encodeWithSignature(
-            "OwnableUnauthorizedAccount(address)",
-            account
-        ));
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", account));
         distributor.setMerkleRoot(0);
     }
 
@@ -127,7 +120,7 @@ contract RewardsTest is Test {
         string memory json = vm.readFile(filePath1);
         bytes32 root = parseMerkleRoot(json);
         Leaf memory leaf = parseLeaf(index, json);
-        
+
         distributor.setMerkleRoot(root);
 
         vm.prank(leaf.account);
@@ -141,7 +134,7 @@ contract RewardsTest is Test {
         string memory json = vm.readFile(filePath1);
         bytes32 root = parseMerkleRoot(json);
         Leaf memory leaf = parseLeaf(index, json);
-        
+
         distributor.setMerkleRoot(root);
 
         vm.prank(leaf.account);
@@ -165,13 +158,14 @@ contract RewardsTest is Test {
         bytes32 root = parseMerkleRoot(json);
         Leaf memory leaf = parseLeaf(index, json);
         vm.assume(leaf.account != account);
-        
+
         distributor.setMerkleRoot(root);
 
         vm.prank(account);
         vm.expectRevert("Rewards/invalid-account");
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
+
     function testClaimFailInvalidProofFromFile(uint256 index, bytes32 proof) public {
         index = bound(index, 0, valuesLength);
 
@@ -179,7 +173,7 @@ contract RewardsTest is Test {
         bytes32 root = parseMerkleRoot(json);
         Leaf memory leaf = parseLeaf(index, json);
         leaf.proof[0] = proof;
-        
+
         distributor.setMerkleRoot(root);
 
         vm.prank(leaf.account);
@@ -195,7 +189,7 @@ contract RewardsTest is Test {
         vm.assume(root != newRoot_);
 
         Leaf memory leaf = parseLeaf(index, json);
-        
+
         distributor.setMerkleRoot(newRoot_);
 
         vm.prank(leaf.account);
@@ -211,7 +205,7 @@ contract RewardsTest is Test {
         bytes32 root = parseMerkleRoot(json);
         Leaf memory leaf = parseLeaf(index, json);
         leaf.cumulativeAmount = amount;
-        
+
         distributor.setMerkleRoot(root);
 
         vm.prank(leaf.account);
@@ -225,7 +219,7 @@ contract RewardsTest is Test {
         string memory json = vm.readFile(filePath1);
         bytes32 root = parseMerkleRoot(json);
         Leaf memory leaf = parseLeaf(index, json);
-        
+
         distributor.setMerkleRoot(root);
         distributor.setEpochClosed(leaf.epoch, true);
         vm.prank(leaf.account);
@@ -239,7 +233,7 @@ contract RewardsTest is Test {
         string memory json = vm.readFile(filePath1);
         bytes32 root = parseMerkleRoot(json);
         Leaf memory leaf = parseLeaf(index, json);
-        
+
         distributor.setMerkleRoot(root);
 
         vm.startPrank(leaf.account);
@@ -249,7 +243,8 @@ contract RewardsTest is Test {
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
-    // Hardcoded merkle tree tests to sanity check against the file tests
+    /* ========== HARDCODED CLAIM TESTS ========== */
+    // Hardcoded claim tests to sanity check against the file-based tests
     function testClaim() public {
         bytes32 root = 0xdf1c8acd41bc6fbedd45b9ac771e141b06ed63450154099d2107ca6b7c60f3b4;
 
@@ -263,7 +258,7 @@ contract RewardsTest is Test {
         proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
         proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
         proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
-        
+
         distributor.setMerkleRoot(root);
 
         vm.prank(account);
@@ -284,19 +279,18 @@ contract RewardsTest is Test {
         proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
         proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
         proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
-        
+
         distributor.setMerkleRoot(root);
 
         vm.prank(account);
         distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
         assertEq(distributor.cumulativeClaimed(account, epoch), IERC20(token).balanceOf(account));
 
-
         // Set new root
         root = 0x3ad180d45b269158a2a43cd36b90dec892aeaf3b841eff43869286d542fe0f98;
 
         // Second claim
-        cumulativeAmount = 1500000000000000000000;  // Second claim 1500-1000=500 tokens
+        cumulativeAmount = 1500000000000000000000; // Second claim 1500-1000=500 tokens
         proof[0] = 0x33e3c31aee3e738a8d300e6611c4b026403a6e68da3e93056e5168d79639d4b6;
         proof[1] = 0x0b1ae75516e2ca79d7e3c7b4b8025d10e0a2241e8f4245ba15e2c3f2e1946633;
         proof[2] = 0x66e2eab7a691f0a57807aaafa91b616ed48fe85d9b1b97f690c864a883d7ef28;
@@ -322,7 +316,7 @@ contract RewardsTest is Test {
         proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
         proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
         proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
-        
+
         distributor.setMerkleRoot(root);
 
         vm.assume(account_ != account);
@@ -344,7 +338,7 @@ contract RewardsTest is Test {
         proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
         proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
         proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
-        
+
         vm.assume(proof_ != proof[3]);
         proof[3] = proof_;
 
@@ -369,7 +363,7 @@ contract RewardsTest is Test {
         proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
         proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
         proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
-        
+
         distributor.setMerkleRoot(root);
 
         bytes32 newRoot = newRoot_;
@@ -381,7 +375,7 @@ contract RewardsTest is Test {
 
     function testClaimInvalidAmount(uint256 amount) public {
         vm.assume(amount != 1000000000000000000000);
-        
+
         bytes32 root = 0xdf1c8acd41bc6fbedd45b9ac771e141b06ed63450154099d2107ca6b7c60f3b4;
 
         uint256 epoch = 1;
@@ -394,7 +388,7 @@ contract RewardsTest is Test {
         proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
         proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
         proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
-        
+
         distributor.setMerkleRoot(root);
 
         vm.prank(account);
@@ -403,7 +397,6 @@ contract RewardsTest is Test {
     }
 
     function testClaimInvalidEpoch(uint256 epoch_) public {
-
         bytes32 root = 0xdf1c8acd41bc6fbedd45b9ac771e141b06ed63450154099d2107ca6b7c60f3b4;
 
         uint256 epoch = epoch_;
@@ -416,7 +409,7 @@ contract RewardsTest is Test {
         proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
         proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
         proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
-        
+
         distributor.setMerkleRoot(root);
         distributor.setEpochClosed(epoch, true);
 
@@ -438,7 +431,7 @@ contract RewardsTest is Test {
         proof[1] = 0xd0c587636eaf9e3a18bf755b5eaf2ca1ae41c41a5714fea94a58b733081a1008;
         proof[2] = 0xca8123d02c6601929d5d5c05002003563dda41236b325fdbc3e56e0665f3b9fe;
         proof[3] = 0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08;
-        
+
         distributor.setMerkleRoot(root);
 
         vm.prank(account);
