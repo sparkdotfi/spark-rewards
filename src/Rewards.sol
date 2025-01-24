@@ -64,13 +64,13 @@ contract Rewards is Ownable {
         require(MerkleProof.verify(merkleProof, expectedMerkleRoot, leaf), "Rewards/invalid-proof");
         
         // Mark it claimed
-        uint256 preclaimed = cumulativeClaimed[account][epoch];
-        require(preclaimed < cumulativeAmount, "Rewards/nothing-to-claim");
+        uint256 preClaimed = cumulativeClaimed[account][epoch];
+        require(preClaimed < cumulativeAmount, "Rewards/nothing-to-claim");
         cumulativeClaimed[account][epoch] = cumulativeAmount;
 
         // Send the token
         unchecked {
-            uint256 amount = cumulativeAmount - preclaimed;
+            uint256 amount = cumulativeAmount - preClaimed;
             IERC20(token).safeTransferFrom(wallet, account, amount);
             emit Claimed(account, amount);
         }
