@@ -27,12 +27,13 @@ contract Rewards is Ownable {
     // This event is triggered whenever a call to #setEpochClosed succeeds.
     event EpochIsClosed(uint256 epoch, bool isClosed);
 
-    constructor(address owner) Ownable(owner) { }
+    constructor(address owner) Ownable(owner) {}
 
     /* ========== ADMIN FUNCTIONS ========== */
     function setWallet(address wallet_) public onlyOwner {
         wallet = wallet_;
     }
+
     function setMerkleRoot(bytes32 merkleRoot_) external onlyOwner {
         emit MerkelRootUpdated(merkleRoot, merkleRoot_);
         merkleRoot = merkleRoot_;
@@ -62,7 +63,7 @@ contract Rewards is Ownable {
 
         // Verify the proof
         require(MerkleProof.verify(merkleProof, expectedMerkleRoot, leaf), "Rewards/invalid-proof");
-        
+
         // Mark it claimed
         uint256 preClaimed = cumulativeClaimed[account][epoch];
         require(preClaimed < cumulativeAmount, "Rewards/nothing-to-claim");
