@@ -1,0 +1,1 @@
+deploy :; forge script script/Deploy.s.sol --sender ${ETH_FROM} --broadcast --verify
