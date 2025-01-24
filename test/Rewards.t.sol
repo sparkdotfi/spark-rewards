@@ -31,18 +31,18 @@ contract RewardsTest is Test {
     }
 
     function setUp() public {
-        token1 = new Token("Test1", "TST1", 1_000_000 * 1e18);
-        token2 = new Token("Test2", "TST2", 1_000_000 * 1e18);
+        token1 = new Token("Test1", "TST1", 1_000_000_000 * 1e18);
+        token2 = new Token("Test2", "TST2", 1_000_000_000 * 1e18);
 
         distributor = new Rewards();
         distributor.setWallet(address(wallet));
 
-        token1.transfer(address(wallet), 1_000_000 * 1e18);
-        token2.transfer(address(wallet), 1_000_000 * 1e18);
+        token1.transfer(address(wallet), 1_000_000_000 * 1e18);
+        token2.transfer(address(wallet), 1_000_000_000 * 1e18);
 
         vm.startPrank(wallet);
-        token1.approve(address(distributor), 1_000_000 * 1e18);
-        token2.approve(address(distributor), 1_000_000 * 1e18);
+        token1.approve(address(distributor), 1_000_000_000 * 1e18);
+        token2.approve(address(distributor), 1_000_000_000 * 1e18);
         vm.stopPrank();
 
         string memory json = vm.readFile(filePath1);
@@ -439,5 +439,40 @@ contract RewardsTest is Test {
         vm.prank(account);
         vm.expectRevert("Rewards/nothing-to-claim");
         distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
+    }
+
+    // Test for a Merkle Tree of 100k claimers
+    function testClaimLargeTree() public {
+        bytes32 root = 0x9dbd722a81f9d6b2bf5b0c086aa518977d2c701fa859e3a69d4568070526e8cf;
+
+        uint256 epoch = 1;
+        address account = 0xad5315F51d93692f28b0bc4A85bC9F5BdCe7EE9F;
+        address token = 0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;
+        uint256 cumulativeAmount = 5446866727330897165615104; // First claim 1000 tokens
+
+        bytes32[] memory proof = new bytes32[](17);
+        proof[0] = 0x8b41ef8cfa3456fd0e74b25c22f5ea75d8f90b87ced173c5c3fa9635490da87d;
+        proof[1] = 0x86b25f7d851e9d5a580f6be631916284a5d61e8d951420a5a239da06e667db5c;
+        proof[2] = 0xb429c39db1d9963f005a261d8ae42526096057c541d133d03158e538b40cdc11;
+        proof[3] = 0x48a80ab542d618913d340de73bfc4437028b6af3c13a57fb9d36384e7a33a217;
+        proof[4] = 0x68c6ef1ebe6b59512c32713a44a9c49e82205e508c10c2f24e8fe7522c1baa03;
+        proof[5] = 0x4741d2548f5c8c42a107a9cd82d9e4b669551ae1215dfbf5e7fba5f0140d1c88;
+        proof[6] = 0xfea965ea9aee0884a5ec3b644ce19f1b6ddf1ac05f89c7b255167ccd51cda6ba;
+        proof[7] = 0x40bb89ae5e75a9ba47320770f5f654e3942180539e9397b0abb1a9a8951206a6;
+        proof[8] = 0x6f7af309e43d8fc8a29bc80bd39d60305beec62f8150a81edbb698fbabb27317;
+        proof[9] = 0xd1c56f8e63c4f6bd7836fd1e1860e58564f7493e1ea4241ecb3c322415cbd0c0;
+        proof[10] = 0x7818a2f931951ca5d833115b61a05304e86eeb562cd7db9e35c8e36ddaabc301;
+        proof[11] = 0x16bbca18dfaeb6eb3d4737dac062ce457cf83042329abdf984881d3a6f478c9a;
+        proof[12] = 0x2f7d2d40a0350f694d2b375b31ad1ab024c9dad42603a5a7c1a9aae0918917c2;
+        proof[13] = 0xd9cee42c063d1b588e03b38eff870817b65db1e07c4ab387074f9aa7559d52cb;
+        proof[14] = 0xc5078cf3741834f7f0aca0ee0026d3dc97ae5e50b209d5aecd2fc7a4efed1fc8;
+        proof[15] = 0x390c26f77a57339604b70ab6c3c99a4b469c08a2e98c12826a562909a7622424;
+        proof[16] = 0xd4ae2dc050e58cf4c19700ab97ac40059c1cb232de71ba4f48ae2444f246c462;
+
+        distributor.setMerkleRoot(root);
+
+        vm.prank(account);
+        distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
+        assertEq(distributor.cumulativeClaimed(account, epoch), IERC20(token).balanceOf(account));
     }
 }
