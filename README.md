@@ -1,8 +1,8 @@
 # Spark Rewards
 
-<!-- ![Foundry CI](https://github.com/{org}/{repo}/actions/workflows/ci.yml/badge.svg)
+![Foundry CI](https://github.com/marsfoundation/spark-alm-controller/actions/workflows/ci.yml/badge.svg)
 [![Foundry][foundry-badge]][foundry]
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/{org}/{repo}/blob/master/LICENSE) -->
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/marsfoundation/spark-alm-controller/blob/master/LICENSE)
 
 [foundry]: https://getfoundry.sh/
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
@@ -14,7 +14,6 @@ The `Rewards` smart contract is designed to facilitate the distribution of ERC20
 ```bash
 forge build
 ```
----
 
 ## Test
 
@@ -22,7 +21,11 @@ forge build
 forge test
 ```
 
----
+## Deploy
+
+```bash
+make deploy
+```
 
 ## Key Features
 
@@ -46,8 +49,6 @@ forge test
      - Update the Merkle root.
      - Manage epoch status (enable/disable).
 
----
-
 ## Functions
 
 ### **Admin Functions**
@@ -70,8 +71,6 @@ forge test
 5. `disableEpoch(uint256 epoch_)`
    - Disables an epoch to prevent claims.
 
----
-
 ### **User Functions**
 1. `claim(uint256 epoch_, address account, address token, uint256 cumulativeAmount, bytes32 expectedMerkleRoot, bytes32[] calldata merkleProof)`
    - Allows users to claim tokens for a specific epoch.
@@ -82,8 +81,6 @@ forge test
    - Ensures users cannot claim more than their entitled amount.
    - Tokens are transferred from the `wallet` to the claimer's address.
    - Emits a `Claimed` event upon success.
-
----
 
 ## Events
 1. **`WalletUpdated(address oldWallet, address newWallet)`**
@@ -101,14 +98,11 @@ forge test
 5. **`Claimed(address indexed account, uint256 amount)`**
    - Emitted when a user successfully claims tokens.
 
----
-
 ## Example Claim Workflow
 
 1. **Admin**:
    - Sets the `wallet` address. Requires approval.
    - Updates the Merkle root with eligible claims.
-   - Enables the current epoch.
 
 2. **User**:
    - Retrieves their proof and data from the Merkle tree.
@@ -119,8 +113,6 @@ forge test
      - Cumulative amount.
      - Expected Merkle root.
      - Merkle proof.
-
----
 
 ## Merkle Tree Script
 
@@ -145,3 +137,6 @@ Example:
 
 ***
 *The IP in this repository was assigned to Mars SPC Limited in respect of the MarsOne SP*
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/841397d0-0cd4-4464-b4b4-6024b6ad6c6d" height="120" />
+</p>
