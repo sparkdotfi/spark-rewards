@@ -34,7 +34,7 @@ contract RewardsTest is Test {
         token1 = new Token("Test1", "TST1", 1_000_000 * 1e18);
         token2 = new Token("Test2", "TST2", 1_000_000 * 1e18);
 
-        distributor = new Rewards(address(this));
+        distributor = new Rewards();
         distributor.setWallet(address(wallet));
 
         token1.transfer(address(wallet), 1_000_000 * 1e18);

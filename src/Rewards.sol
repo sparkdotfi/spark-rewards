@@ -27,7 +27,7 @@ contract Rewards is Ownable {
     // This event is triggered whenever a call to #setEpochClosed succeeds.
     event EpochIsClosed(uint256 epoch, bool isClosed);
 
-    constructor(address owner) Ownable(owner) {}
+    constructor() Ownable(msg.sender) {}
 
     /* ========== ADMIN FUNCTIONS ========== */
     function setWallet(address wallet_) public onlyOwner {
