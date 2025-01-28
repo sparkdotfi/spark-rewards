@@ -26,7 +26,7 @@ contract RewardsTestBase is Test {
     bytes32 public constant MERKLE_ROOT_ROLE = keccak256("MERKLE_ROOT_ROLE");
     bytes32 public constant WALLET_ROLE      = keccak256("WALLET_ROLE");
 
-    function setUp() public {
+    function setUp() public virtual {
         distributor = new Rewards();
 
         distributor.grantRole(EPOCH_ROLE,       epochAdmin);
@@ -128,59 +128,72 @@ contract RewardsAdminSuccessTests is RewardsTestBase {
 
 }
 
-// contract RewardsTestBase is Test {
+contract RewardsClaimTestBase is RewardsTestBase {
 
-//     Rewards public distributor;
+    IERC20 public token1;
+    IERC20 public token2;
 
-//     IERC20 public token1;
-//     IERC20 public token2;
+    uint256 public valuesLength; // Size of merkle values array of file 1
 
-//     uint256 public valuesLength; // Size of merkle values array of file 1
+    string filePath1 = "test/data/exampleTree1.json"; // change this to the path of the file
+    string filePath2 = "test/data/exampleTree2.json";
 
-//     string filePath1 = "test/data/exampleTree1.json"; // change this to the path of the file
-//     string filePath2 = "test/data/exampleTree2.json";
+    address wallet = makeAddr("wallet");
 
-//     address epochAdmin      = makeAddr("epochAdmin");
-//     address merkleRootAdmin = makeAddr("merkleRootAdmin");
-//     address walletAdmin     = makeAddr("walletAdmin");
+    struct Leaf {
+        uint256 epoch;
+        address account;
+        address token;
+        uint256 cumulativeAmount;
+        bytes32[] proof;
+    }
 
-//     address wallet = makeAddr("wallet");
+    function setUp() public override {
+        super.setUp();
 
-//     bytes32 public constant EPOCH_ROLE       = keccak256("EPOCH_ROLE");
-//     bytes32 public constant MERKLE_ROOT_ROLE = keccak256("MERKLE_ROOT_ROLE");
-//     bytes32 public constant WALLET_ROLE      = keccak256("WALLET_ROLE");
+        token1 = new Token("Test1", "TST1", 1_000_000_000e18);
+        token2 = new Token("Test2", "TST2", 1_000_000_000e18);
 
-//     struct Leaf {
-//         uint256 epoch;
-//         address account;
-//         address token;
-//         uint256 cumulativeAmount;
-//         bytes32[] proof;
-//     }
+        vm.prank(walletAdmin);
+        distributor.setWallet(address(wallet));
 
-//     function setUp() public {
-//         token1 = new Token("Test1", "TST1", 1_000_000_000e18);
-//         token2 = new Token("Test2", "TST2", 1_000_000_000e18);
+        token1.transfer(address(wallet), 1_000_000_000e18);
+        token2.transfer(address(wallet), 1_000_000_000e18);
 
-//         distributor = new Rewards();
+        vm.startPrank(wallet);
+        token1.approve(address(distributor), 1_000_000_000e18);
+        token2.approve(address(distributor), 1_000_000_000e18);
+        vm.stopPrank();
 
-//         distributor.grantRole(EPOCH_ROLE,       epochAdmin);
-//         distributor.grantRole(MERKLE_ROOT_ROLE, merkleRootAdmin);
-//         distributor.grantRole(WALLET_ROLE,      walletAdmin);
+        // // Number of claimers in the test files
+        // valuesLength = getValuesLength(vm.readFile(filePath1));
+    }
 
-//         vm.prank(walletAdmin);
-//         distributor.setWallet(address(wallet));
+}
 
-//         token1.transfer(address(wallet), 1_000_000_000e18);
-//         token2.transfer(address(wallet), 1_000_000_000e18);
+contract RewardsClaimFailureTests is RewardsClaimTestBase {
 
-//         vm.startPrank(wallet);
-//         token1.approve(address(distributor), 1_000_000_000e18);
-//         token2.approve(address(distributor), 1_000_000_000e18);
-//         vm.stopPrank();
+    function test_claim_accountNotMsgSender() public {
+        vm.expectRevert("Rewards/invalid-account");
+        distributor.claim(1, makeAddr("account"), address(token1), 1, bytes32(0), new bytes32[](0));
+    }
 
-//         // // Number of claimers in the test files
-//         // valuesLength = getValuesLength(vm.readFile(filePath1));
-//     }
+    function test_claim_merkleRootNotExpected() public {
+        bytes32 root1 = "root1";
+        bytes32 root2 = "root2";
 
-// }
+        vm.prank(merkleRootAdmin);
+        distributor.setMerkleRoot(root1);
+
+        vm.expectRevert("Rewards/merkle-root-was-updated");
+        distributor.claim(1, address(this), address(token1), 1, root2, new bytes32[](0));
+    }
+
+    function test_claim_epochClosed() public {
+        vm.prank(epochAdmin);
+        distributor.setEpochClosed(1, true);
+
+        vm.expectRevert("Rewards/epoch-not-enabled");
+        distributor.claim(1, address(this), address(token1), 1, bytes32(0), new bytes32[](0));
+    }
+}
