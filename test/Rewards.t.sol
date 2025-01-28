@@ -22,6 +22,11 @@ contract RewardsTest is Test {
     string filePath2 = "test/data/exampleTree2.json";
     address wallet = 0x1234123412341234123412341234123412341234;
 
+    // Roles
+    bytes32 public constant WALLET_ROLE = keccak256("WALLET_ROLE");
+    bytes32 public constant MERKLE_ROOT_ROLE = keccak256("MERKLE_ROOT_ROLE");
+    bytes32 public constant EPOCH_ROLE = keccak256("EPOCH_ROLE");
+
     struct Leaf {
         uint256 epoch;
         address account;
@@ -35,6 +40,11 @@ contract RewardsTest is Test {
         token2 = new Token("Test2", "TST2", 1_000_000_000 * 1e18);
 
         distributor = new Rewards();
+
+        distributor.grantRole(WALLET_ROLE, address(this));
+        distributor.grantRole(MERKLE_ROOT_ROLE, address(this));
+        distributor.grantRole(EPOCH_ROLE, address(this));
+
         distributor.setWallet(address(wallet));
 
         token1.transfer(address(wallet), 1_000_000_000 * 1e18);
@@ -81,10 +91,14 @@ contract RewardsTest is Test {
         assertEq(distributor.wallet(), account);
     }
 
-    function testSetWalletOnlyOwner(address account) public {
+    function testSetWalletInvalidSender(address account) public {
         vm.assume(account != address(this));
         vm.prank(account);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", account));
+        vm.expectRevert(abi.encodeWithSignature(
+            "AccessControlUnauthorizedAccount(address,bytes32)",
+            account,
+            WALLET_ROLE
+        ));
         distributor.setWallet(account);
     }
 
@@ -93,10 +107,14 @@ contract RewardsTest is Test {
         assert(distributor.epochClosed(epoch));
     }
 
-    function testSetEpochClosedOnlyOwner(address account, uint256 epoch) public {
+    function testSetEpochClosedInvalidSender(address account, uint256 epoch) public {
         vm.assume(account != address(this));
         vm.prank(account);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", account));
+        vm.expectRevert(abi.encodeWithSignature(
+            "AccessControlUnauthorizedAccount(address,bytes32)",
+            account,
+            EPOCH_ROLE
+        ));
         distributor.setEpochClosed(epoch, true);
     }
 
@@ -109,7 +127,11 @@ contract RewardsTest is Test {
     function testSetMerkleRootInvalidSender(address account) public {
         vm.assume(account != address(this));
         vm.prank(account);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", account));
+        vm.expectRevert(abi.encodeWithSignature(
+            "AccessControlUnauthorizedAccount(address,bytes32)",
+            account,
+            MERKLE_ROOT_ROLE
+        ));
         distributor.setMerkleRoot(0);
     }
 
