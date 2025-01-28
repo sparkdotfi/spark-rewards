@@ -49,6 +49,7 @@ contract Rewards is AccessControl {
     /*** Configuration functions                                                                ***/
     /**********************************************************************************************/
 
+    // TODO: setEscrow?
     function setWallet(address wallet_) public onlyRole(WALLET_ROLE) {
         wallet = wallet_;
         emit WalletUpdated(wallet, wallet_);
