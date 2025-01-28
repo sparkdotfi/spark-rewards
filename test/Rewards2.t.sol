@@ -149,10 +149,10 @@ contract RewardsClaimTestBase is RewardsTestBase {
     }
 
     function setUp() public override {
-        super.setUp();
-
         token1 = new Token("Test1", "TST1", 1_000_000_000e18);
         token2 = new Token("Test2", "TST2", 1_000_000_000e18);
+
+        super.setUp();
 
         vm.prank(walletAdmin);
         distributor.setWallet(address(wallet));
@@ -165,8 +165,49 @@ contract RewardsClaimTestBase is RewardsTestBase {
         token2.approve(address(distributor), 1_000_000_000e18);
         vm.stopPrank();
 
-        // // Number of claimers in the test files
-        // valuesLength = getValuesLength(vm.readFile(filePath1));
+        string memory json = vm.readFile(filePath1);
+
+        vm.prank(merkleRootAdmin);
+        distributor.setMerkleRoot(parseMerkleRoot(json));
+
+        valuesLength = getValuesLength(json);
+    }
+
+    function getClaimParams(uint256 index, string memory filePath)
+        internal returns (bytes32 root, Leaf memory leaf)
+    {
+        string memory json = vm.readFile(filePath);
+
+        root = parseMerkleRoot(json);
+        leaf = parseLeaf(index, json);
+    }
+
+    function getValuesLength(string memory json) public pure returns (uint256) {
+        // Parse the totalClaims directly from the JSON file
+        return vm.parseJsonUint(json, ".totalClaims") - 1;
+    }
+
+    function parseLeaf(uint256 index, string memory json) public pure returns (Leaf memory) {
+        // Use the index parameter to dynamically access the values
+        string memory indexPath = string(abi.encodePacked(".values[", vm.toString(index), "]"));
+
+        uint256 cumulativeAmount = uint256(vm.parseJsonUint(json, string(abi.encodePacked(indexPath, ".cumulativeAmount"))));
+        uint256 epoch            = uint256(vm.parseJsonUint(json, string(abi.encodePacked(indexPath, ".epoch"))));
+
+        address account = vm.parseJsonAddress(json, string(abi.encodePacked(indexPath, ".account")));
+        address token   = vm.parseJsonAddress(json, string(abi.encodePacked(indexPath, ".token")));
+
+        // Parse the proof
+        bytes32[] memory proof = abi.decode(
+            vm.parseJson(json, string(abi.encodePacked(indexPath, ".proof"))),
+            (bytes32[])
+        );
+
+        return Leaf(epoch, account, token, cumulativeAmount, proof);
+    }
+
+    function parseMerkleRoot(string memory json) public pure returns (bytes32) {
+        return vm.parseJsonBytes32(json, ".root");
     }
 
 }
@@ -196,4 +237,131 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
         vm.expectRevert("Rewards/epoch-not-enabled");
         distributor.claim(1, address(this), address(token1), 1, bytes32(0), new bytes32[](0));
     }
+
+    function testFuzz_claim_invalidEpoch(uint256 index) public {
+        index = _bound(index, 0, valuesLength);
+
+        ( bytes32 root, Leaf memory leaf ) = getClaimParams(0, filePath1);
+
+        leaf.epoch += 1;
+
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/invalid-proof");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+    }
+
+    function testFuzz_claim_invalidAccount(uint256 index) public {
+        index = _bound(index, 0, valuesLength);
+
+        ( bytes32 root, Leaf memory leaf ) = getClaimParams(0, filePath1);
+
+        leaf.account = makeAddr("fakeAccount");
+
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/invalid-proof");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+    }
+
+    function testFuzz_claim_invalidToken(uint256 index) public {
+        index = _bound(index, 0, valuesLength);
+
+        ( bytes32 root, Leaf memory leaf ) = getClaimParams(0, filePath1);
+
+        leaf.token = makeAddr("fakeToken");
+
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/invalid-proof");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+    }
+
+    function testFuzz_claim_invalidCumulativeAmount(uint256 index) public {
+        index = _bound(index, 0, valuesLength);
+
+        ( bytes32 root, Leaf memory leaf ) = getClaimParams(0, filePath1);
+
+        leaf.cumulativeAmount += 1;
+
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/invalid-proof");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+    }
+
+    function test_claim_nothingToClaim(uint256 index) public {
+        index = _bound(index, 0, valuesLength);
+
+        ( bytes32 root, Leaf memory leaf ) = getClaimParams(0, filePath1);
+
+        vm.prank(leaf.account);
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/nothing-to-claim");
+        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+    }
+
+}
+
+contract RewardsClaimSuccessTests is RewardsClaimTestBase {
+
+    function test_claim_singleClaim() public {
+        uint256 index = 0;
+
+        ( bytes32 root, Leaf memory leaf ) = getClaimParams(index, filePath1);
+
+        IERC20 token = IERC20(leaf.token);
+
+        assertEq(token.balanceOf(wallet),       1_000_000_000e18);
+        assertEq(token.balanceOf(leaf.account), 0);
+
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 0);
+
+        vm.prank(leaf.account);
+        uint256 claimedAmount = distributor.claim(
+            leaf.epoch,
+            leaf.account,
+            leaf.token,
+            leaf.cumulativeAmount,
+            root,
+            leaf.proof
+        );
+
+        assertEq(claimedAmount, leaf.cumulativeAmount);
+        assertEq(claimedAmount, 1000e18);
+
+        assertEq(token.balanceOf(wallet),       1_000_000_000e18 - 1000e18);
+        assertEq(token.balanceOf(leaf.account), 1000e18);
+
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 1000e18);
+    }
+
+    function testFuzz_claim_singleClaim(uint256 index) public {
+        index = _bound(index, 0, valuesLength);
+
+        ( bytes32 root, Leaf memory leaf ) = getClaimParams(index, filePath1);
+
+        IERC20 token = IERC20(leaf.token);
+
+        assertEq(token.balanceOf(wallet),       1_000_000_000e18);
+        assertEq(token.balanceOf(leaf.account), 0);
+
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 0);
+
+        vm.prank(leaf.account);
+        uint256 claimedAmount = distributor.claim(
+            leaf.epoch,
+            leaf.account,
+            leaf.token,
+            leaf.cumulativeAmount,
+            root,
+            leaf.proof
+        );
+
+        assertEq(claimedAmount, leaf.cumulativeAmount);
+
+        assertEq(token.balanceOf(wallet),       1_000_000_000e18 - claimedAmount);
+        assertEq(token.balanceOf(leaf.account), claimedAmount);
+
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
+    }
+
 }

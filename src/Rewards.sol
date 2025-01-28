@@ -76,7 +76,7 @@ contract Rewards is AccessControl {
         uint256 cumulativeAmount,
         bytes32 expectedMerkleRoot,
         bytes32[] calldata merkleProof
-    ) external {
+    ) external returns (uint256 claimedAmount) {
         require(account == msg.sender,            "Rewards/invalid-account");
         require(merkleRoot == expectedMerkleRoot, "Rewards/merkle-root-was-updated");
         require(!epochClosed[epoch],              "Rewards/epoch-not-enabled");
@@ -95,8 +95,8 @@ contract Rewards is AccessControl {
         cumulativeClaimed[account][token][epoch] = cumulativeAmount;
 
         // Send the token
-        uint256 amount = cumulativeAmount - preClaimed;
-        IERC20(token).safeTransferFrom(wallet, account, amount);
-        emit Claimed(account, amount);
+        claimedAmount = cumulativeAmount - preClaimed;
+        IERC20(token).safeTransferFrom(wallet, account, claimedAmount);
+        emit Claimed(account, claimedAmount);
     }
 }
