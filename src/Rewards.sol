@@ -17,7 +17,7 @@ contract Rewards is AccessControl {
 
     event Claimed(address indexed account, uint256 amount);
     event EpochIsClosed(uint256 indexed epoch, bool isClosed);
-    event MerkelRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
+    event MerkleRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
     event WalletUpdated(address indexed oldWallet, address indexed newWallet);
 
     /**********************************************************************************************/
@@ -51,13 +51,13 @@ contract Rewards is AccessControl {
 
     // TODO: setEscrow?
     function setWallet(address wallet_) public onlyRole(WALLET_ROLE) {
-        wallet = wallet_;
         emit WalletUpdated(wallet, wallet_);
+        wallet = wallet_;
     }
 
     function setMerkleRoot(bytes32 merkleRoot_) external onlyRole(MERKLE_ROOT_ROLE) {
+        emit MerkleRootUpdated(merkleRoot, merkleRoot_);
         merkleRoot = merkleRoot_;
-        emit MerkelRootUpdated(merkleRoot, merkleRoot_);
     }
 
     function setEpochClosed(uint256 epoch, bool isClosed) public onlyRole(EPOCH_ROLE) {
