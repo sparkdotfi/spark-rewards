@@ -31,7 +31,7 @@ contract Deploy is Script {
         rewards.setMerkleRoot(merkleRoot);
 
         // Transfer the ownership to the admin
-        rewards.transferOwnership(admin);
+        rewards.grantRole(rewards.DEFAULT_ADMIN_ROLE(), admin);
 
         vm.stopBroadcast();
 
