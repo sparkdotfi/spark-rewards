@@ -40,7 +40,7 @@ contract RewardsTest is Test {
         token2 = new Token("Test2", "TST2", 1_000_000_000 * 1e18);
 
         distributor = new Rewards();
-
+        
         distributor.grantRole(WALLET_ROLE, address(this));
         distributor.grantRole(MERKLE_ROOT_ROLE, address(this));
         distributor.grantRole(EPOCH_ROLE, address(this));
@@ -147,7 +147,7 @@ contract RewardsTest is Test {
 
         vm.prank(leaf.account);
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
-        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
     }
 
     function testClaimCumulativeFromFile(uint256 index) public {
@@ -161,7 +161,7 @@ contract RewardsTest is Test {
 
         vm.prank(leaf.account);
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
-        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
 
         json = vm.readFile(filePath2);
         root = parseMerkleRoot(json);
@@ -170,7 +170,7 @@ contract RewardsTest is Test {
         distributor.setMerkleRoot(root);
         vm.prank(leaf.account);
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
-        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
     }
 
     function testClaimFailInvalidAccountFromFile(uint256 index, address account) public {
@@ -260,7 +260,7 @@ contract RewardsTest is Test {
 
         vm.startPrank(leaf.account);
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
-        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
+        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), IERC20(leaf.token).balanceOf(leaf.account));
         vm.expectRevert("Rewards/nothing-to-claim");
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
@@ -285,7 +285,7 @@ contract RewardsTest is Test {
 
         vm.prank(account);
         distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
-        assertEq(distributor.cumulativeClaimed(account, epoch), IERC20(token).balanceOf(account));
+        assertEq(distributor.cumulativeClaimed(account, token, epoch), IERC20(token).balanceOf(account));
     }
 
     function testCumulativeClaim() public {
@@ -306,7 +306,7 @@ contract RewardsTest is Test {
 
         vm.prank(account);
         distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
-        assertEq(distributor.cumulativeClaimed(account, epoch), IERC20(token).balanceOf(account));
+        assertEq(distributor.cumulativeClaimed(account, token, epoch), IERC20(token).balanceOf(account));
 
         // Set new root
         root = 0x3ad180d45b269158a2a43cd36b90dec892aeaf3b841eff43869286d542fe0f98;
@@ -322,7 +322,7 @@ contract RewardsTest is Test {
 
         vm.prank(account);
         distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
-        assertEq(distributor.cumulativeClaimed(account, epoch), IERC20(token).balanceOf(account));
+        assertEq(distributor.cumulativeClaimed(account, token, epoch), IERC20(token).balanceOf(account));
     }
 
     function testClaimInvalidAccount(address account_) public {
@@ -495,6 +495,6 @@ contract RewardsTest is Test {
 
         vm.prank(account);
         distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
-        assertEq(distributor.cumulativeClaimed(account, epoch), IERC20(token).balanceOf(account));
+        assertEq(distributor.cumulativeClaimed(account, token, epoch), IERC20(token).balanceOf(account));
     }
 }
