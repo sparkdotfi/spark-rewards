@@ -14,8 +14,8 @@ contract Rewards is AccessControl {
 
     // epoch => isClosed
     mapping(uint256 => bool) public epochClosed;
-    // account => epoch => amount
-    mapping(address => mapping(uint256 => uint256)) public cumulativeClaimed;
+    // account => token => epoch => amount
+    mapping(address => mapping(address => mapping(uint256 => uint256))) public cumulativeClaimed;
 
     // Roles
     bytes32 public constant WALLET_ROLE = keccak256("WALLET_ROLE");
@@ -68,9 +68,9 @@ contract Rewards is AccessControl {
         require(MerkleProof.verify(merkleProof, expectedMerkleRoot, leaf), "Rewards/invalid-proof");
 
         // Mark it claimed
-        uint256 preClaimed = cumulativeClaimed[account][epoch];
+        uint256 preClaimed = cumulativeClaimed[account][token][epoch];
         require(preClaimed < cumulativeAmount, "Rewards/nothing-to-claim");
-        cumulativeClaimed[account][epoch] = cumulativeAmount;
+        cumulativeClaimed[account][token][epoch] = cumulativeAmount;
 
         // Send the token
         uint256 amount = cumulativeAmount - preClaimed;
