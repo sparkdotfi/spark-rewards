@@ -73,10 +73,8 @@ contract Rewards is AccessControl {
         cumulativeClaimed[account][epoch] = cumulativeAmount;
 
         // Send the token
-        unchecked {
-            uint256 amount = cumulativeAmount - preClaimed;
-            IERC20(token).safeTransferFrom(wallet, account, amount);
-            emit Claimed(account, amount);
-        }
+        uint256 amount = cumulativeAmount - preClaimed;
+        IERC20(token).safeTransferFrom(wallet, account, amount);
+        emit Claimed(account, amount);
     }
 }
