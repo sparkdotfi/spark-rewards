@@ -135,7 +135,8 @@ contract RewardsClaimTestBase is RewardsTestBase {
 
     uint256 public valuesLength; // Size of merkle values array of file 1
 
-    string filePath1 = "test/data/complexTree1.json";// change this to the path of the file
+    // NOTE: Complex trees are dynamic and can be replaced in tests, simple cannot
+    string filePath1 = "test/data/complexTree1.json";
     string filePath2 = "test/data/complexTree2.json";
     string filePath3 = "test/data/simpleTree1.json";
 
@@ -165,13 +166,6 @@ contract RewardsClaimTestBase is RewardsTestBase {
         token1.approve(address(distributor), 1_000_000_000e18);
         token2.approve(address(distributor), 1_000_000_000e18);
         vm.stopPrank();
-
-        string memory json = vm.readFile(filePath1);
-
-        vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(parseMerkleRoot(json));
-
-        valuesLength = getValuesLength(json);
     }
 
     function getClaimParams(uint256 index, string memory filePath)
@@ -215,27 +209,32 @@ contract RewardsClaimTestBase is RewardsTestBase {
 
 contract RewardsClaimFailureTests is RewardsClaimTestBase {
 
+    bytes32 root;
+
+    function setUp() public override {
+        super.setUp();
+
+        string memory json = vm.readFile(filePath1);
+
+        root = parseMerkleRoot(json);
+
+        vm.prank(merkleRootAdmin);
+        distributor.setMerkleRoot(root);
+    }
+
     function test_claim_accountNotMsgSender() public {
         vm.expectRevert("Rewards/invalid-account");
-        distributor.claim(1, makeAddr("account"), address(token1), 1, bytes32(0), new bytes32[](0));
+        distributor.claim(1, makeAddr("account"), address(token1), 1, root, new bytes32[](0));
     }
 
     function test_claim_merkleRootNotExpected() public {
-        bytes32 root1 = "root1";
-        bytes32 root2 = "root2";
-
-        vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(root1);
-
         vm.expectRevert("Rewards/merkle-root-was-updated");
-        distributor.claim(1, address(this), address(token1), 1, root2, new bytes32[](0));
+        distributor.claim(1, address(this), address(token1), 1, "root2", new bytes32[](0));
     }
 
     function test_claim_epochClosed() public {
         vm.prank(epochAdmin);
         distributor.setEpochClosed(1, true);
-
-        bytes32 root = distributor.merkleRoot();
 
         vm.expectRevert("Rewards/epoch-not-enabled");
         distributor.claim(1, address(this), address(token1), 1, root, new bytes32[](0));
@@ -244,7 +243,7 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
     function testFuzz_claim_invalidEpoch(uint256 index) public {
         index = _bound(index, 0, valuesLength);
 
-        ( bytes32 root, Leaf memory leaf ) = getClaimParams(0, filePath1);
+        Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
 
         leaf.epoch += 1;
 
@@ -256,7 +255,7 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
     function testFuzz_claim_invalidAccount(uint256 index) public {
         index = _bound(index, 0, valuesLength);
 
-        ( bytes32 root, Leaf memory leaf ) = getClaimParams(0, filePath1);
+        Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
 
         leaf.account = makeAddr("fakeAccount");
 
@@ -268,7 +267,7 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
     function testFuzz_claim_invalidToken(uint256 index) public {
         index = _bound(index, 0, valuesLength);
 
-        ( bytes32 root, Leaf memory leaf ) = getClaimParams(0, filePath1);
+        Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
 
         leaf.token = makeAddr("fakeToken");
 
@@ -280,7 +279,7 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
     function testFuzz_claim_invalidCumulativeAmount(uint256 index) public {
         index = _bound(index, 0, valuesLength);
 
-        ( bytes32 root, Leaf memory leaf ) = getClaimParams(0, filePath1);
+        Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
 
         leaf.cumulativeAmount += 1;
 
@@ -292,7 +291,7 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
     function test_claim_nothingToClaim(uint256 index) public {
         index = _bound(index, 0, valuesLength);
 
-        ( bytes32 root, Leaf memory leaf ) = getClaimParams(0, filePath1);
+        Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
 
         vm.prank(leaf.account);
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
@@ -320,9 +319,9 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
     uint256 valuesLength2;
     uint256 valuesLength3;
 
-    bytes32 root1;
-    bytes32 root2;
-    bytes32 root3;
+    bytes32 complexRoot1;
+    bytes32 complexRoot2;
+    bytes32 simpleRoot;
 
     function setUp() public override {
         super.setUp();
@@ -335,9 +334,9 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
         valuesLength2 = getValuesLength(json2);
         valuesLength3 = getValuesLength(json3);
 
-        root1 = parseMerkleRoot(json1);
-        root2 = parseMerkleRoot(json2);
-        root3 = parseMerkleRoot(json3);
+        complexRoot1 = parseMerkleRoot(json1);
+        complexRoot2 = parseMerkleRoot(json2);
+        simpleRoot   = parseMerkleRoot(json3);
     }
 
     function test_claim_singleClaim() public {
@@ -346,7 +345,7 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
         ( bytes32 root, Leaf memory leaf ) = getClaimParams(index, filePath3);
 
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(root); // Reading the simple tree
+        distributor.setMerkleRoot(simpleRoot);
 
         IERC20 token = IERC20(leaf.token);
 
@@ -375,6 +374,9 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
     }
 
     function testFuzz_claim_singleClaim(uint256 index) public {
+        vm.prank(merkleRootAdmin);
+        distributor.setMerkleRoot(complexRoot1);
+
         index = _bound(index, 0, valuesLength);
 
         ( bytes32 root, Leaf memory leaf ) = getClaimParams(index, filePath1);
@@ -405,9 +407,8 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
     }
 
     function test_claim_e2e_multiUser_multiToken_multiEpoch() public {
-
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(parseMerkleRoot(json3)); // Reading simple tree
+        distributor.setMerkleRoot(simpleRoot); // Reading simple tree
 
         valuesLength = getValuesLength(json3);
         Leaf[] memory leaves = new Leaf[](8);
@@ -443,7 +444,7 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
                 leaf.account,
                 leaf.token,
                 leaf.cumulativeAmount,
-                root3,
+                simpleRoot,
                 leaf.proof
             );
 
@@ -469,6 +470,9 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
     }
 
     function test_claim_e2e_allUsers_bothFiles() public {
+        vm.prank(merkleRootAdmin);
+        distributor.setMerkleRoot(complexRoot1);
+
         Leaf[] memory leaves1 = new Leaf[](valuesLength1);
         Leaf[] memory leaves2 = new Leaf[](valuesLength2);
 
@@ -499,7 +503,7 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
                 leaf.account,
                 leaf.token,
                 leaf.cumulativeAmount,
-                root1,
+                complexRoot1,
                 leaf.proof
             );
 
@@ -527,14 +531,14 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
             failingLeaf.account,
             failingLeaf.token,
             failingLeaf.cumulativeAmount,
-            root2,
+            complexRoot2,
             failingLeaf.proof
         );
 
         // Step 3: Update merkle root
 
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(root2);
+        distributor.setMerkleRoot(complexRoot2);
 
         // Step 4: Claim from all users with the second file
 
@@ -553,7 +557,7 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
                 leaf.account,
                 leaf.token,
                 leaf.cumulativeAmount,
-                root2,
+                complexRoot2,
                 leaf.proof
             );
 
@@ -576,6 +580,9 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
     }
 
     function test_claim_e2e_someUsers_bothFiles() public {
+        vm.prank(merkleRootAdmin);
+        distributor.setMerkleRoot(complexRoot1);
+
         Leaf[] memory leaves1 = new Leaf[](valuesLength1 - 3);  // Remove some claims
         Leaf[] memory leaves2 = new Leaf[](valuesLength2 - 3);  // Remove some claims
 
@@ -608,7 +615,7 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
                 leaf.account,
                 leaf.token,
                 leaf.cumulativeAmount,
-                root1,
+                complexRoot1,
                 leaf.proof
             );
 
@@ -636,14 +643,14 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
             failingLeaf.account,
             failingLeaf.token,
             failingLeaf.cumulativeAmount,
-            root2,
+            complexRoot2,
             failingLeaf.proof
         );
 
         // Step 3: Update merkle root
 
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(root2);
+        distributor.setMerkleRoot(complexRoot2);
 
         // Step 4: Claim from most users with the second file (some users don't claim that claimed in first file)
 
@@ -662,7 +669,7 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
                 leaf.account,
                 leaf.token,
                 leaf.cumulativeAmount,
-                root2,
+                complexRoot2,
                 leaf.proof
             );
 
