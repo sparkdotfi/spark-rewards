@@ -305,6 +305,34 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
 
 contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
 
+    // Using storage to avoid stack too deep error
+
+    // Matches file
+    address account1 = 0x1111111111111111111111111111111111111111;
+    address account2 = 0x2222222222222222222222222222222222222222;
+
+    string json1;
+    string json2;
+
+    uint256 valuesLength1;
+    uint256 valuesLength2;
+
+    bytes32 root1;
+    bytes32 root2;
+
+    function setUp() public override {
+        super.setUp();
+
+        json1 = vm.readFile(filePath1);
+        json2 = vm.readFile(filePath2);
+
+        valuesLength1 = getValuesLength(json1);
+        valuesLength2 = getValuesLength(json2);
+
+        root1 = parseMerkleRoot(json1);
+        root2 = parseMerkleRoot(json2);
+    }
+
     function test_claim_singleClaim() public {
         uint256 index = 0;
 
@@ -366,10 +394,283 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
         assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
     }
 
-    function test_claim_multiUser_multiToken_multiEpoch() public {
+    function test_claim_e2e_multiUser_multiToken_multiEpoch() public {
+        Leaf[] memory leaves = new Leaf[](8);
+
+        leaves[0] = parseLeaf(0, json1);  // User 1, epoch 1, token1
+        leaves[1] = parseLeaf(1, json1);  // User 1, epoch 1, token2
+        leaves[2] = parseLeaf(2, json1);  // User 2, epoch 1, token1
+        leaves[3] = parseLeaf(3, json1);  // User 2, epoch 1, token2
+        leaves[4] = parseLeaf(4, json1);  // User 1, epoch 2, token1
+        leaves[5] = parseLeaf(5, json1);  // User 1, epoch 2, token2
+        leaves[6] = parseLeaf(6, json1);  // User 2, epoch 2, token1
+        leaves[7] = parseLeaf(7, json1);  // User 2, epoch 2, token2
+
+        assertEq(token1.balanceOf(wallet),   1_000_000_000e18);
+        assertEq(token1.balanceOf(account1), 0);
+        assertEq(token1.balanceOf(account2), 0);
+
+        assertEq(token2.balanceOf(wallet),   1_000_000_000e18);
+        assertEq(token2.balanceOf(account1), 0);
+        assertEq(token2.balanceOf(account2), 0);
+
+        uint256 token1Claimed;
+        uint256 token2Claimed;
+
+        for (uint256 i; i < 8; ++i) {
+            Leaf memory leaf = leaves[i];
+
+            IERC20 token = IERC20(leaf.token);
+
+            uint256 userBalance   = token.balanceOf(leaf.account);
+            uint256 walletBalance = token.balanceOf(wallet);
+
+            vm.prank(leaf.account);
+            uint256 claimedAmount = distributor.claim(
+                leaf.epoch,
+                leaf.account,
+                leaf.token,
+                leaf.cumulativeAmount,
+                root1,
+                leaf.proof
+            );
+
+            assertEq(claimedAmount, leaf.cumulativeAmount);
+
+            assertEq(token.balanceOf(wallet),       walletBalance - claimedAmount);
+            assertEq(token.balanceOf(leaf.account), userBalance   + claimedAmount);
+
+            assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
+        }
+
+        uint256 sumToken1 = leaves[0].cumulativeAmount + leaves[2].cumulativeAmount + leaves[4].cumulativeAmount + leaves[6].cumulativeAmount;
+        uint256 sumToken2 = leaves[1].cumulativeAmount + leaves[3].cumulativeAmount + leaves[5].cumulativeAmount + leaves[7].cumulativeAmount;
+
+        assertEq(token1.balanceOf(wallet),   1_000_000_000e18 - sumToken1);
+        assertEq(token1.balanceOf(account1), leaves[0].cumulativeAmount + leaves[4].cumulativeAmount);
+        assertEq(token1.balanceOf(account2), leaves[2].cumulativeAmount + leaves[6].cumulativeAmount);
+
+        assertEq(token2.balanceOf(wallet),   1_000_000_000e18 - sumToken2);
+        assertEq(token2.balanceOf(account1), leaves[1].cumulativeAmount + leaves[5].cumulativeAmount);
+        assertEq(token2.balanceOf(account2), leaves[3].cumulativeAmount + leaves[7].cumulativeAmount);
+
     }
 
-    function test_claim_allUsers_bothFiles() public {}
+    function test_claim_e2e_allUsers_bothFiles() public {
+        Leaf[] memory leaves1 = new Leaf[](valuesLength1);
+        Leaf[] memory leaves2 = new Leaf[](valuesLength2);
+
+        for (uint256 i; i < valuesLength1; ++i) {
+            leaves1[i] = parseLeaf(i, json1);
+        }
+
+        for (uint256 i; i < valuesLength2; ++i) {
+            leaves2[i] = parseLeaf(i, json2);
+        }
+
+        uint256 token1Claimed;
+        uint256 token2Claimed;
+
+        // Step 1: Claim from all users with the first file
+
+        for (uint256 i; i < valuesLength1; ++i) {
+            Leaf memory leaf = leaves1[i];
+
+            IERC20 token = IERC20(leaf.token);
+
+            uint256 userBalance   = token.balanceOf(leaf.account);
+            uint256 walletBalance = token.balanceOf(wallet);
+
+            vm.prank(leaf.account);
+            uint256 claimedAmount = distributor.claim(
+                leaf.epoch,
+                leaf.account,
+                leaf.token,
+                leaf.cumulativeAmount,
+                root1,
+                leaf.proof
+            );
+
+            if      (leaf.token == address(token1)) token1Claimed += claimedAmount;
+            else if (leaf.token == address(token2)) token2Claimed += claimedAmount;
+
+            assertEq(claimedAmount, leaf.cumulativeAmount);
+
+            assertEq(token.balanceOf(wallet),       walletBalance - claimedAmount);
+            assertEq(token.balanceOf(leaf.account), userBalance   + claimedAmount);
+
+            assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
+        }
+
+        assertEq(token1.balanceOf(wallet), 1_000_000_000e18 - token1Claimed);
+        assertEq(token2.balanceOf(wallet), 1_000_000_000e18 - token2Claimed);
+
+        // Step 2: Demonstrate claims can't happen until root is updated
+
+        Leaf memory leaf = leaves2[0];
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/merkle-root-was-updated");
+        uint256 claimedAmount = distributor.claim(
+            leaf.epoch,
+            leaf.account,
+            leaf.token,
+            leaf.cumulativeAmount,
+            root2,
+            leaf.proof
+        );
+
+        // Step 3: Update merkle root
+
+        vm.prank(merkleRootAdmin);
+        distributor.setMerkleRoot(root2);
+
+        // Step 4: Claim from all users with the second file
+
+        for (uint256 i; i < valuesLength2; ++i) {
+            Leaf memory leaf = leaves2[i];
+
+            IERC20 token = IERC20(leaf.token);
+
+            uint256 userBalance       = token.balanceOf(leaf.account);
+            uint256 walletBalance     = token.balanceOf(wallet);
+            uint256 cumulativeClaimed = distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch);
+
+            vm.prank(leaf.account);
+            uint256 claimedAmount = distributor.claim(
+                leaf.epoch,
+                leaf.account,
+                leaf.token,
+                leaf.cumulativeAmount,
+                root2,
+                leaf.proof
+            );
+
+            if      (leaf.token == address(token1)) token1Claimed += claimedAmount;
+            else if (leaf.token == address(token2)) token2Claimed += claimedAmount;
+
+            // User gets the difference between the two files for this token and epoch
+            assertEq(claimedAmount, leaf.cumulativeAmount - cumulativeClaimed);
+
+            assertEq(token.balanceOf(wallet),       walletBalance - claimedAmount);
+            assertEq(token.balanceOf(leaf.account), userBalance   + claimedAmount);
+
+            // After claim state is set to the value in the latest file
+            assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), leaf.cumulativeAmount);
+        }
+
+        // Same assertions used because it was cumulated in the second loop
+        assertEq(token1.balanceOf(wallet), 1_000_000_000e18 - token1Claimed);
+        assertEq(token2.balanceOf(wallet), 1_000_000_000e18 - token2Claimed);
+    }
+
+    function test_claim_e2e_someUsers_bothFiles() public {
+        Leaf[] memory leaves1 = new Leaf[](valuesLength1 - 3);  // Remove some claims
+        Leaf[] memory leaves2 = new Leaf[](valuesLength2 - 3);  // Remove some claims
+
+        // Remove some claims from beginning of file
+        for (uint256 i; i < valuesLength1 - 3; ++i) {
+            leaves1[i] = parseLeaf(i + 3, json1);
+        }
+
+        // Remove some claims from end of file
+        for (uint256 i; i < valuesLength2 - 3; ++i) {
+            leaves2[i] = parseLeaf(i, json2);
+        }
+
+        uint256 token1Claimed;
+        uint256 token2Claimed;
+
+        // Step 1: Claim from most users with the first file (some users don't claim but claim in second file)
+
+        for (uint256 i; i < valuesLength1 - 3; ++i) {
+            Leaf memory leaf = leaves1[i];
+
+            IERC20 token = IERC20(leaf.token);
+
+            uint256 userBalance   = token.balanceOf(leaf.account);
+            uint256 walletBalance = token.balanceOf(wallet);
+
+            vm.prank(leaf.account);
+            uint256 claimedAmount = distributor.claim(
+                leaf.epoch,
+                leaf.account,
+                leaf.token,
+                leaf.cumulativeAmount,
+                root1,
+                leaf.proof
+            );
+
+            if      (leaf.token == address(token1)) token1Claimed += claimedAmount;
+            else if (leaf.token == address(token2)) token2Claimed += claimedAmount;
+
+            assertEq(claimedAmount, leaf.cumulativeAmount);
+
+            assertEq(token.balanceOf(wallet),       walletBalance - claimedAmount);
+            assertEq(token.balanceOf(leaf.account), userBalance   + claimedAmount);
+
+            assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
+        }
+
+        assertEq(token1.balanceOf(wallet), 1_000_000_000e18 - token1Claimed);
+        assertEq(token2.balanceOf(wallet), 1_000_000_000e18 - token2Claimed);
+
+        // Step 2: Demonstrate claims can't happen until root is updated
+
+        Leaf memory leaf = leaves2[0];
+        vm.prank(leaf.account);
+        vm.expectRevert("Rewards/merkle-root-was-updated");
+        uint256 claimedAmount = distributor.claim(
+            leaf.epoch,
+            leaf.account,
+            leaf.token,
+            leaf.cumulativeAmount,
+            root2,
+            leaf.proof
+        );
+
+        // Step 3: Update merkle root
+
+        vm.prank(merkleRootAdmin);
+        distributor.setMerkleRoot(root2);
+
+        // Step 4: Claim from most users with the second file (some users don't claim that claimed in first file)
+
+        for (uint256 i; i < valuesLength2 - 3; ++i) {
+            Leaf memory leaf = leaves2[i];
+
+            IERC20 token = IERC20(leaf.token);
+
+            uint256 userBalance       = token.balanceOf(leaf.account);
+            uint256 walletBalance     = token.balanceOf(wallet);
+            uint256 cumulativeClaimed = distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch);
+
+            vm.prank(leaf.account);
+            uint256 claimedAmount = distributor.claim(
+                leaf.epoch,
+                leaf.account,
+                leaf.token,
+                leaf.cumulativeAmount,
+                root2,
+                leaf.proof
+            );
+
+            if      (leaf.token == address(token1)) token1Claimed += claimedAmount;
+            else if (leaf.token == address(token2)) token2Claimed += claimedAmount;
+
+            // User gets the difference between the two files for this token and epoch
+            assertEq(claimedAmount, leaf.cumulativeAmount - cumulativeClaimed);
+
+            assertEq(token.balanceOf(wallet),       walletBalance - claimedAmount);
+            assertEq(token.balanceOf(leaf.account), userBalance   + claimedAmount);
+
+            // After claim state is set to the value in the latest file
+            assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), leaf.cumulativeAmount);
+        }
+
+        // Same assertions used because it was cumulated in the second loop
+        assertEq(token1.balanceOf(wallet), 1_000_000_000e18 - token1Claimed);
+        assertEq(token2.balanceOf(wallet), 1_000_000_000e18 - token2Claimed);
+    }
 
 }
 
@@ -496,4 +797,5 @@ contract RewardsClaimHardcodedTests is RewardsClaimTestBase {
 
         assertEq(distributor.cumulativeClaimed(account, token, epoch), cumulativeAmount);
     }
+
 }
