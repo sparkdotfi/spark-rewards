@@ -15,7 +15,7 @@ contract Rewards is AccessControl {
     /*** Events                                                                                 ***/
     /**********************************************************************************************/
 
-    event Claimed(address indexed account, uint256 amount);
+    event Claimed(address indexed account, uint256 amount);  // Add token, epoch
     event EpochIsClosed(uint256 indexed epoch, bool isClosed);
     event MerkleRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
     event WalletUpdated(address indexed oldWallet, address indexed newWallet);
@@ -41,6 +41,7 @@ contract Rewards is AccessControl {
     /*** Constructor                                                                            ***/
     /**********************************************************************************************/
 
+    // TODO: Refactor to pass in owner
     constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
@@ -49,7 +50,6 @@ contract Rewards is AccessControl {
     /*** Configuration functions                                                                ***/
     /**********************************************************************************************/
 
-    // TODO: setEscrow?
     function setWallet(address wallet_) public onlyRole(WALLET_ROLE) {
         emit WalletUpdated(wallet, wallet_);
         wallet = wallet_;
@@ -99,4 +99,5 @@ contract Rewards is AccessControl {
         IERC20(token).safeTransferFrom(wallet, account, claimedAmount);
         emit Claimed(account, claimedAmount);
     }
+
 }
