@@ -135,8 +135,9 @@ contract RewardsClaimTestBase is RewardsTestBase {
 
     uint256 public valuesLength; // Size of merkle values array of file 1
 
-    string filePath1 = "test/data/exampleTree1.json"; // change this to the path of the file
-    string filePath2 = "test/data/exampleTree2.json";
+    string filePath1 = "test/data/complexTree1.json";// change this to the path of the file
+    string filePath2 = "test/data/complexTree2.json";
+    string filePath3 = "test/data/simpleTree1.json";
 
     address wallet = makeAddr("wallet");
 
@@ -313,30 +314,39 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
 
     string json1;
     string json2;
+    string json3;
 
     uint256 valuesLength1;
     uint256 valuesLength2;
+    uint256 valuesLength3;
 
     bytes32 root1;
     bytes32 root2;
+    bytes32 root3;
 
     function setUp() public override {
         super.setUp();
 
         json1 = vm.readFile(filePath1);
         json2 = vm.readFile(filePath2);
+        json3 = vm.readFile(filePath3);
 
         valuesLength1 = getValuesLength(json1);
         valuesLength2 = getValuesLength(json2);
+        valuesLength3 = getValuesLength(json3);
 
         root1 = parseMerkleRoot(json1);
         root2 = parseMerkleRoot(json2);
+        root3 = parseMerkleRoot(json3);
     }
 
     function test_claim_singleClaim() public {
         uint256 index = 0;
 
-        ( bytes32 root, Leaf memory leaf ) = getClaimParams(index, filePath1);
+        ( bytes32 root, Leaf memory leaf ) = getClaimParams(index, filePath3);
+
+        vm.prank(merkleRootAdmin);
+        distributor.setMerkleRoot(root); // Reading the simple tree
 
         IERC20 token = IERC20(leaf.token);
 
@@ -395,16 +405,21 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
     }
 
     function test_claim_e2e_multiUser_multiToken_multiEpoch() public {
+
+        vm.prank(merkleRootAdmin);
+        distributor.setMerkleRoot(parseMerkleRoot(json3)); // Reading simple tree
+
+        valuesLength = getValuesLength(json3);
         Leaf[] memory leaves = new Leaf[](8);
 
-        leaves[0] = parseLeaf(0, json1);  // User 1, epoch 1, token1
-        leaves[1] = parseLeaf(1, json1);  // User 1, epoch 1, token2
-        leaves[2] = parseLeaf(2, json1);  // User 2, epoch 1, token1
-        leaves[3] = parseLeaf(3, json1);  // User 2, epoch 1, token2
-        leaves[4] = parseLeaf(4, json1);  // User 1, epoch 2, token1
-        leaves[5] = parseLeaf(5, json1);  // User 1, epoch 2, token2
-        leaves[6] = parseLeaf(6, json1);  // User 2, epoch 2, token1
-        leaves[7] = parseLeaf(7, json1);  // User 2, epoch 2, token2
+        leaves[0] = parseLeaf(0, json3);  // User 1, epoch 1, token1
+        leaves[1] = parseLeaf(1, json3);  // User 1, epoch 1, token2
+        leaves[2] = parseLeaf(2, json3);  // User 2, epoch 1, token1
+        leaves[3] = parseLeaf(3, json3);  // User 2, epoch 1, token2
+        leaves[4] = parseLeaf(4, json3);  // User 1, epoch 2, token1
+        leaves[5] = parseLeaf(5, json3);  // User 1, epoch 2, token2
+        leaves[6] = parseLeaf(6, json3);  // User 2, epoch 2, token1
+        leaves[7] = parseLeaf(7, json3);  // User 2, epoch 2, token2
 
         assertEq(token1.balanceOf(wallet),   1_000_000_000e18);
         assertEq(token1.balanceOf(account1), 0);
@@ -428,7 +443,7 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
                 leaf.account,
                 leaf.token,
                 leaf.cumulativeAmount,
-                root1,
+                root3,
                 leaf.proof
             );
 
@@ -751,7 +766,7 @@ contract RewardsClaimHardcodedTests is RewardsClaimTestBase {
     }
 
     // Test for a Merkle Tree of 100k claimers
-    function testClaimLargeTree() public {
+    function test_claim_largeMerkleTree() public {
         // Overwrite values from storage to avoid warnings
         account = 0xad5315F51d93692f28b0bc4A85bC9F5BdCe7EE9F;
         root    = 0x9dbd722a81f9d6b2bf5b0c086aa518977d2c701fa859e3a69d4568070526e8cf;
