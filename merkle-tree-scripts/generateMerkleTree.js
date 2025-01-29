@@ -1,16 +1,13 @@
-// Import the required OpenZeppelin library
 const { StandardMerkleTree } = require('@openzeppelin/merkle-tree');
-const { keccak256 } = require('ethers');
-const ethers = require('ethers'); // Import the full ethers package
 const fs = require('fs'); // For reading and writing JSON files
 const path = require('path'); // For handling file paths
 
-// Helper function to hash a leaf
+// Helper function to normalize leaf data
 function hashLeaf(epoch, account, token, cumulativeAmount) {
     return [
         epoch.toString(),
-        account.toLowerCase(),
-        token.toLowerCase(),
+        account.toLowerCase(), // Normalize account to lowercase
+        token.toLowerCase(),   // Normalize token to lowercase
         cumulativeAmount.toString(),
     ];
 }
@@ -33,28 +30,34 @@ function generateMerkleTree(rewards) {
         ["uint256", "address", "address", "uint256"]
     );
 
-    // Calculate the total amount of claims
-    const totalAmount = rewards.reduce((sum, { cumulativeAmount }) => {
-        return sum.add(ethers.BigNumber.from(cumulativeAmount));
-    }, ethers.BigNumber.from(0));
-
     // Calculate the total number of claims (size of values array)
     const totalClaims = rewards.length;
 
     // Return the Merkle Root, Tree instance, Total Amount, and Total Claims
-    return { root: tree.root, tree, totalAmount, totalClaims };
+    return { root: tree.root, tree, totalClaims };
 }
 
 // Function to write the Merkle Tree data to a JSON file
-function writeMerkleTreeToFile(filePath, tree, rewards, totalAmount, totalClaims) {
+function writeMerkleTreeToFile(filePath, tree, rewards, totalClaims) {
     const treeData = {
         root: tree.root, // Use `tree.root` for the Merkle root
-        totalAmount: totalAmount.toString(), // Include the total amount of claims
         totalClaims: totalClaims, // Include the total number of claims
         values: rewards.map((reward, index) => {
             const proof = tree.getProof(index);
+
+            // Use hashLeaf to normalize data
+            const [epoch, account, token, cumulativeAmount] = hashLeaf(
+                reward.epoch,
+                reward.account,
+                reward.token,
+                reward.cumulativeAmount
+            );
+
             return {
-                ...reward,
+                epoch,
+                account,
+                token,
+                cumulativeAmount,
                 proof
             };
         })
@@ -85,14 +88,13 @@ function readRewardsData(filePath) {
         const rewards = readRewardsData(inputFilePath);
 
         // Generate the Merkle Tree and calculate the total amount of claims and total number of claims
-        const { root, tree, totalAmount, totalClaims } = generateMerkleTree(rewards);
+        const { root, tree, totalClaims } = generateMerkleTree(rewards);
 
         console.log("Merkle Root:", root);
-        console.log("Total Amount of Claims:", totalAmount.toString());
         console.log("Total Number of Claims:", totalClaims);
 
         // Write the Merkle Tree data to the specified JSON file
-        writeMerkleTreeToFile(outputFilePath, tree, rewards, totalAmount, totalClaims);
+        writeMerkleTreeToFile(outputFilePath, tree, rewards, totalClaims);
 
         console.log("Merkle tree and proofs written to:", outputFilePath);
     } catch (error) {
