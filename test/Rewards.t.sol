@@ -174,7 +174,7 @@ contract RewardsClaimTestBase is RewardsTestBase {
     }
 
     function getClaimParams(uint256 index, string memory filePath)
-        internal returns (bytes32 root, Leaf memory leaf)
+        internal view returns (bytes32 root, Leaf memory leaf)
     {
         string memory json = vm.readFile(filePath);
 
@@ -414,9 +414,6 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
         assertEq(token2.balanceOf(account1), 0);
         assertEq(token2.balanceOf(account2), 0);
 
-        uint256 token1Claimed;
-        uint256 token2Claimed;
-
         for (uint256 i; i < 8; ++i) {
             Leaf memory leaf = leaves[i];
 
@@ -507,16 +504,16 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
 
         // Step 2: Demonstrate claims can't happen until root is updated
 
-        Leaf memory leaf = leaves2[0];
-        vm.prank(leaf.account);
+        Leaf memory failingLeaf = leaves2[0];
+        vm.prank(failingLeaf.account);
         vm.expectRevert("Rewards/merkle-root-was-updated");
-        uint256 claimedAmount = distributor.claim(
-            leaf.epoch,
-            leaf.account,
-            leaf.token,
-            leaf.cumulativeAmount,
+        distributor.claim(
+            failingLeaf.epoch,
+            failingLeaf.account,
+            failingLeaf.token,
+            failingLeaf.cumulativeAmount,
             root2,
-            leaf.proof
+            failingLeaf.proof
         );
 
         // Step 3: Update merkle root
@@ -616,16 +613,16 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
 
         // Step 2: Demonstrate claims can't happen until root is updated
 
-        Leaf memory leaf = leaves2[0];
-        vm.prank(leaf.account);
+        Leaf memory failingLeaf = leaves2[0];
+        vm.prank(failingLeaf.account);
         vm.expectRevert("Rewards/merkle-root-was-updated");
-        uint256 claimedAmount = distributor.claim(
-            leaf.epoch,
-            leaf.account,
-            leaf.token,
-            leaf.cumulativeAmount,
+        distributor.claim(
+            failingLeaf.epoch,
+            failingLeaf.account,
+            failingLeaf.token,
+            failingLeaf.cumulativeAmount,
             root2,
-            leaf.proof
+            failingLeaf.proof
         );
 
         // Step 3: Update merkle root
@@ -755,29 +752,30 @@ contract RewardsClaimHardcodedTests is RewardsClaimTestBase {
 
     // Test for a Merkle Tree of 100k claimers
     function testClaimLargeTree() public {
-        address account = 0xad5315F51d93692f28b0bc4A85bC9F5BdCe7EE9F;
-        bytes32 root    = 0x9dbd722a81f9d6b2bf5b0c086aa518977d2c701fa859e3a69d4568070526e8cf;
+        // Overwrite values from storage to avoid warnings
+        account = 0xad5315F51d93692f28b0bc4A85bC9F5BdCe7EE9F;
+        root    = 0x9dbd722a81f9d6b2bf5b0c086aa518977d2c701fa859e3a69d4568070526e8cf;
 
-        uint256 cumulativeAmount = 5_446_866.727330897165615104e18;
+        cumulativeAmount = 5_446_866.727330897165615104e18;
 
-        bytes32[] memory proof = new bytes32[](17);
-        proof[0] = 0x8b41ef8cfa3456fd0e74b25c22f5ea75d8f90b87ced173c5c3fa9635490da87d;
-        proof[1] = 0x86b25f7d851e9d5a580f6be631916284a5d61e8d951420a5a239da06e667db5c;
-        proof[2] = 0xb429c39db1d9963f005a261d8ae42526096057c541d133d03158e538b40cdc11;
-        proof[3] = 0x48a80ab542d618913d340de73bfc4437028b6af3c13a57fb9d36384e7a33a217;
-        proof[4] = 0x68c6ef1ebe6b59512c32713a44a9c49e82205e508c10c2f24e8fe7522c1baa03;
-        proof[5] = 0x4741d2548f5c8c42a107a9cd82d9e4b669551ae1215dfbf5e7fba5f0140d1c88;
-        proof[6] = 0xfea965ea9aee0884a5ec3b644ce19f1b6ddf1ac05f89c7b255167ccd51cda6ba;
-        proof[7] = 0x40bb89ae5e75a9ba47320770f5f654e3942180539e9397b0abb1a9a8951206a6;
-        proof[8] = 0x6f7af309e43d8fc8a29bc80bd39d60305beec62f8150a81edbb698fbabb27317;
-        proof[9] = 0xd1c56f8e63c4f6bd7836fd1e1860e58564f7493e1ea4241ecb3c322415cbd0c0;
-        proof[10] = 0x7818a2f931951ca5d833115b61a05304e86eeb562cd7db9e35c8e36ddaabc301;
-        proof[11] = 0x16bbca18dfaeb6eb3d4737dac062ce457cf83042329abdf984881d3a6f478c9a;
-        proof[12] = 0x2f7d2d40a0350f694d2b375b31ad1ab024c9dad42603a5a7c1a9aae0918917c2;
-        proof[13] = 0xd9cee42c063d1b588e03b38eff870817b65db1e07c4ab387074f9aa7559d52cb;
-        proof[14] = 0xc5078cf3741834f7f0aca0ee0026d3dc97ae5e50b209d5aecd2fc7a4efed1fc8;
-        proof[15] = 0x390c26f77a57339604b70ab6c3c99a4b469c08a2e98c12826a562909a7622424;
-        proof[16] = 0xd4ae2dc050e58cf4c19700ab97ac40059c1cb232de71ba4f48ae2444f246c462;
+        bytes32[] memory bigProof = new bytes32[](17);
+        bigProof[0] = 0x8b41ef8cfa3456fd0e74b25c22f5ea75d8f90b87ced173c5c3fa9635490da87d;
+        bigProof[1] = 0x86b25f7d851e9d5a580f6be631916284a5d61e8d951420a5a239da06e667db5c;
+        bigProof[2] = 0xb429c39db1d9963f005a261d8ae42526096057c541d133d03158e538b40cdc11;
+        bigProof[3] = 0x48a80ab542d618913d340de73bfc4437028b6af3c13a57fb9d36384e7a33a217;
+        bigProof[4] = 0x68c6ef1ebe6b59512c32713a44a9c49e82205e508c10c2f24e8fe7522c1baa03;
+        bigProof[5] = 0x4741d2548f5c8c42a107a9cd82d9e4b669551ae1215dfbf5e7fba5f0140d1c88;
+        bigProof[6] = 0xfea965ea9aee0884a5ec3b644ce19f1b6ddf1ac05f89c7b255167ccd51cda6ba;
+        bigProof[7] = 0x40bb89ae5e75a9ba47320770f5f654e3942180539e9397b0abb1a9a8951206a6;
+        bigProof[8] = 0x6f7af309e43d8fc8a29bc80bd39d60305beec62f8150a81edbb698fbabb27317;
+        bigProof[9] = 0xd1c56f8e63c4f6bd7836fd1e1860e58564f7493e1ea4241ecb3c322415cbd0c0;
+        bigProof[10] = 0x7818a2f931951ca5d833115b61a05304e86eeb562cd7db9e35c8e36ddaabc301;
+        bigProof[11] = 0x16bbca18dfaeb6eb3d4737dac062ce457cf83042329abdf984881d3a6f478c9a;
+        bigProof[12] = 0x2f7d2d40a0350f694d2b375b31ad1ab024c9dad42603a5a7c1a9aae0918917c2;
+        bigProof[13] = 0xd9cee42c063d1b588e03b38eff870817b65db1e07c4ab387074f9aa7559d52cb;
+        bigProof[14] = 0xc5078cf3741834f7f0aca0ee0026d3dc97ae5e50b209d5aecd2fc7a4efed1fc8;
+        bigProof[15] = 0x390c26f77a57339604b70ab6c3c99a4b469c08a2e98c12826a562909a7622424;
+        bigProof[16] = 0xd4ae2dc050e58cf4c19700ab97ac40059c1cb232de71ba4f48ae2444f246c462;
 
         vm.prank(merkleRootAdmin);
         distributor.setMerkleRoot(root);
@@ -788,7 +786,7 @@ contract RewardsClaimHardcodedTests is RewardsClaimTestBase {
         assertEq(distributor.cumulativeClaimed(account, token, epoch), 0);
 
         vm.prank(account);
-        uint256 amount = distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
+        uint256 amount = distributor.claim(epoch, account, token, cumulativeAmount, root, bigProof);
 
         assertEq(amount, cumulativeAmount);
 
