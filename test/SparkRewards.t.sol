@@ -16,7 +16,7 @@ contract Token is ERC20 {
 
 contract SparkRewardsTestBase is Test {
 
-    SparkRewards public distributor;
+    SparkRewards public rewards;
 
     address admin           = makeAddr("admin");
     address epochAdmin      = makeAddr("epochAdmin");
@@ -28,11 +28,11 @@ contract SparkRewardsTestBase is Test {
     bytes32 public constant WALLET_ROLE      = keccak256("WALLET_ROLE");
 
     function setUp() public virtual {
-        distributor = new SparkRewards(admin);
+        rewards = new SparkRewards(admin);
         vm.startPrank(admin);
-        distributor.grantRole(EPOCH_ROLE,       epochAdmin);
-        distributor.grantRole(MERKLE_ROOT_ROLE, merkleRootAdmin);
-        distributor.grantRole(WALLET_ROLE,      walletAdmin);
+        rewards.grantRole(EPOCH_ROLE,       epochAdmin);
+        rewards.grantRole(MERKLE_ROOT_ROLE, merkleRootAdmin);
+        rewards.grantRole(WALLET_ROLE,      walletAdmin);
         vm.stopPrank();
     }
 
@@ -46,7 +46,7 @@ contract SparkRewardsAdminFailureTests is SparkRewardsTestBase {
             address(this),
             WALLET_ROLE
         ));
-        distributor.setWallet(makeAddr("newWallet"));
+        rewards.setWallet(makeAddr("newWallet"));
     }
 
     function test_setMerkleRoot_notMerkleRootRole() public {
@@ -55,7 +55,7 @@ contract SparkRewardsAdminFailureTests is SparkRewardsTestBase {
             address(this),
             MERKLE_ROOT_ROLE
         ));
-        distributor.setMerkleRoot(bytes32("newRoot"));
+        rewards.setMerkleRoot(bytes32("newRoot"));
     }
 
     function test_setEpochClosed_notEpochRole() public {
@@ -64,7 +64,7 @@ contract SparkRewardsAdminFailureTests is SparkRewardsTestBase {
             address(this),
             EPOCH_ROLE
         ));
-        distributor.setEpochClosed(1, true);
+        rewards.setEpochClosed(1, true);
     }
 
 }
@@ -79,53 +79,53 @@ contract SparkRewardsAdminSuccessTests is SparkRewardsTestBase {
         address wallet1 = makeAddr("wallet1");
         address wallet2 = makeAddr("wallet2");
 
-        assertEq(distributor.wallet(), address(0));
+        assertEq(rewards.wallet(), address(0));
 
         vm.prank(walletAdmin);
-        vm.expectEmit(address(distributor));
+        vm.expectEmit(address(rewards));
         emit WalletUpdated(address(0), wallet1);
-        distributor.setWallet(wallet1);
+        rewards.setWallet(wallet1);
 
-        assertEq(distributor.wallet(), wallet1);
+        assertEq(rewards.wallet(), wallet1);
 
         vm.prank(walletAdmin);
-        vm.expectEmit(address(distributor));
+        vm.expectEmit(address(rewards));
         emit WalletUpdated(wallet1, wallet2);
-        distributor.setWallet(wallet2);
+        rewards.setWallet(wallet2);
 
-        assertEq(distributor.wallet(), wallet2);
+        assertEq(rewards.wallet(), wallet2);
     }
 
     function test_setMerkleRoot() public {
         bytes32 root1 = "root1";
         bytes32 root2 = "root2";
 
-        assertEq(distributor.merkleRoot(), bytes32(0));
+        assertEq(rewards.merkleRoot(), bytes32(0));
 
         vm.prank(merkleRootAdmin);
-        vm.expectEmit(address(distributor));
+        vm.expectEmit(address(rewards));
         emit MerkleRootUpdated(bytes32(0), root1);
-        distributor.setMerkleRoot(root1);
+        rewards.setMerkleRoot(root1);
 
-        assertEq(distributor.merkleRoot(), root1);
+        assertEq(rewards.merkleRoot(), root1);
 
         vm.prank(merkleRootAdmin);
-        vm.expectEmit(address(distributor));
+        vm.expectEmit(address(rewards));
         emit MerkleRootUpdated(root1, root2);
-        distributor.setMerkleRoot(root2);
+        rewards.setMerkleRoot(root2);
 
-        assertEq(distributor.merkleRoot(), root2);
+        assertEq(rewards.merkleRoot(), root2);
     }
 
     function test_setEpochClosed() public {
-        assertEq(distributor.epochClosed(1), false);
+        assertEq(rewards.epochClosed(1), false);
 
         vm.prank(epochAdmin);
-        vm.expectEmit(address(distributor));
+        vm.expectEmit(address(rewards));
         emit EpochIsClosed(1, true);
-        distributor.setEpochClosed(1, true);
+        rewards.setEpochClosed(1, true);
 
-        assertEq(distributor.epochClosed(1), true);
+        assertEq(rewards.epochClosed(1), true);
     }
 
 }
@@ -159,14 +159,14 @@ contract SparkRewardsClaimTestBase is SparkRewardsTestBase {
         super.setUp();
 
         vm.prank(walletAdmin);
-        distributor.setWallet(address(wallet));
+        rewards.setWallet(address(wallet));
 
         token1.transfer(address(wallet), 1_000_000_000e18);
         token2.transfer(address(wallet), 1_000_000_000e18);
 
         vm.startPrank(wallet);
-        token1.approve(address(distributor), 1_000_000_000e18);
-        token2.approve(address(distributor), 1_000_000_000e18);
+        token1.approve(address(rewards), 1_000_000_000e18);
+        token2.approve(address(rewards), 1_000_000_000e18);
         vm.stopPrank();
     }
 
@@ -221,25 +221,25 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
         root = parseMerkleRoot(json);
 
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(root);
+        rewards.setMerkleRoot(root);
     }
 
     function test_claim_accountNotMsgSender() public {
         vm.expectRevert("SparkRewards/invalid-account");
-        distributor.claim(1, makeAddr("account"), address(token1), 1, root, new bytes32[](0));
+        rewards.claim(1, makeAddr("account"), address(token1), 1, root, new bytes32[](0));
     }
 
     function test_claim_merkleRootNotExpected() public {
         vm.expectRevert("SparkRewards/merkle-root-was-updated");
-        distributor.claim(1, address(this), address(token1), 1, "root2", new bytes32[](0));
+        rewards.claim(1, address(this), address(token1), 1, "root2", new bytes32[](0));
     }
 
     function test_claim_epochClosed() public {
         vm.prank(epochAdmin);
-        distributor.setEpochClosed(1, true);
+        rewards.setEpochClosed(1, true);
 
         vm.expectRevert("SparkRewards/epoch-not-enabled");
-        distributor.claim(1, address(this), address(token1), 1, root, new bytes32[](0));
+        rewards.claim(1, address(this), address(token1), 1, root, new bytes32[](0));
     }
 
     function testFuzz_claim_invalidEpoch(uint256 index) public {
@@ -251,7 +251,7 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
 
         vm.prank(leaf.account);
         vm.expectRevert("SparkRewards/invalid-proof");
-        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+        rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
     function testFuzz_claim_invalidAccount(uint256 index) public {
@@ -263,7 +263,7 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
 
         vm.prank(leaf.account);
         vm.expectRevert("SparkRewards/invalid-proof");
-        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+        rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
     function testFuzz_claim_invalidToken(uint256 index) public {
@@ -275,7 +275,7 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
 
         vm.prank(leaf.account);
         vm.expectRevert("SparkRewards/invalid-proof");
-        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+        rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
     function testFuzz_claim_invalidCumulativeAmount(uint256 index) public {
@@ -287,7 +287,7 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
 
         vm.prank(leaf.account);
         vm.expectRevert("SparkRewards/invalid-proof");
-        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+        rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
     function test_claim_nothingToClaim(uint256 index) public {
@@ -296,11 +296,11 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
         Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
 
         vm.prank(leaf.account);
-        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+        rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
 
         vm.prank(leaf.account);
         vm.expectRevert("SparkRewards/nothing-to-claim");
-        distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
+        rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
 }
@@ -347,17 +347,17 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         ( bytes32 root, Leaf memory leaf ) = getClaimParams(index, filePath3);
 
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(simpleRoot);
+        rewards.setMerkleRoot(simpleRoot);
 
         IERC20 token = IERC20(leaf.token);
 
         assertEq(token.balanceOf(wallet),       1_000_000_000e18);
         assertEq(token.balanceOf(leaf.account), 0);
 
-        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 0);
+        assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 0);
 
         vm.prank(leaf.account);
-        uint256 claimedAmount = distributor.claim(
+        uint256 claimedAmount = rewards.claim(
             leaf.epoch,
             leaf.account,
             leaf.token,
@@ -372,12 +372,12 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         assertEq(token.balanceOf(wallet),       1_000_000_000e18 - 1000e18);
         assertEq(token.balanceOf(leaf.account), 1000e18);
 
-        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 1000e18);
+        assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 1000e18);
     }
 
     function testFuzz_claim_singleClaim(uint256 index) public {
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(complexRoot1);
+        rewards.setMerkleRoot(complexRoot1);
 
         index = _bound(index, 0, valuesLength);
 
@@ -388,10 +388,10 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         assertEq(token.balanceOf(wallet),       1_000_000_000e18);
         assertEq(token.balanceOf(leaf.account), 0);
 
-        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 0);
+        assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 0);
 
         vm.prank(leaf.account);
-        uint256 claimedAmount = distributor.claim(
+        uint256 claimedAmount = rewards.claim(
             leaf.epoch,
             leaf.account,
             leaf.token,
@@ -405,12 +405,12 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         assertEq(token.balanceOf(wallet),       1_000_000_000e18 - claimedAmount);
         assertEq(token.balanceOf(leaf.account), claimedAmount);
 
-        assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
+        assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
     }
 
     function test_claim_e2e_multiUser_multiToken_multiEpoch() public {
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(simpleRoot); // Reading simple tree
+        rewards.setMerkleRoot(simpleRoot); // Reading simple tree
 
         valuesLength = getValuesLength(json3);
         Leaf[] memory leaves = new Leaf[](8);
@@ -441,7 +441,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             uint256 walletBalance = token.balanceOf(wallet);
 
             vm.prank(leaf.account);
-            uint256 claimedAmount = distributor.claim(
+            uint256 claimedAmount = rewards.claim(
                 leaf.epoch,
                 leaf.account,
                 leaf.token,
@@ -455,7 +455,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             assertEq(token.balanceOf(wallet),       walletBalance - claimedAmount);
             assertEq(token.balanceOf(leaf.account), userBalance   + claimedAmount);
 
-            assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
+            assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
         }
 
         uint256 sumToken1 = leaves[0].cumulativeAmount + leaves[2].cumulativeAmount + leaves[4].cumulativeAmount + leaves[6].cumulativeAmount;
@@ -473,7 +473,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
 
     function test_claim_e2e_allUsers_bothFiles() public {
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(complexRoot1);
+        rewards.setMerkleRoot(complexRoot1);
 
         Leaf[] memory leaves1 = new Leaf[](valuesLength1);
         Leaf[] memory leaves2 = new Leaf[](valuesLength2);
@@ -500,7 +500,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             uint256 walletBalance = token.balanceOf(wallet);
 
             vm.prank(leaf.account);
-            uint256 claimedAmount = distributor.claim(
+            uint256 claimedAmount = rewards.claim(
                 leaf.epoch,
                 leaf.account,
                 leaf.token,
@@ -517,7 +517,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             assertEq(token.balanceOf(wallet),       walletBalance - claimedAmount);
             assertEq(token.balanceOf(leaf.account), userBalance   + claimedAmount);
 
-            assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
+            assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
         }
 
         assertEq(token1.balanceOf(wallet), 1_000_000_000e18 - token1Claimed);
@@ -528,7 +528,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         Leaf memory failingLeaf = leaves2[0];
         vm.prank(failingLeaf.account);
         vm.expectRevert("SparkRewards/merkle-root-was-updated");
-        distributor.claim(
+        rewards.claim(
             failingLeaf.epoch,
             failingLeaf.account,
             failingLeaf.token,
@@ -540,7 +540,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         // Step 3: Update merkle root
 
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(complexRoot2);
+        rewards.setMerkleRoot(complexRoot2);
 
         // Step 4: Claim from all users with the second file
 
@@ -551,10 +551,10 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
 
             uint256 userBalance       = token.balanceOf(leaf.account);
             uint256 walletBalance     = token.balanceOf(wallet);
-            uint256 cumulativeClaimed = distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch);
+            uint256 cumulativeClaimed = rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch);
 
             vm.prank(leaf.account);
-            uint256 claimedAmount = distributor.claim(
+            uint256 claimedAmount = rewards.claim(
                 leaf.epoch,
                 leaf.account,
                 leaf.token,
@@ -573,7 +573,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             assertEq(token.balanceOf(leaf.account), userBalance   + claimedAmount);
 
             // After claim state is set to the value in the latest file
-            assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), leaf.cumulativeAmount);
+            assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), leaf.cumulativeAmount);
         }
 
         // Same assertions used because it was cumulated in the second loop
@@ -583,7 +583,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
 
     function test_claim_e2e_someUsers_bothFiles() public {
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(complexRoot1);
+        rewards.setMerkleRoot(complexRoot1);
 
         Leaf[] memory leaves1 = new Leaf[](valuesLength1 - 3);  // Remove some claims
         Leaf[] memory leaves2 = new Leaf[](valuesLength2 - 3);  // Remove some claims
@@ -612,7 +612,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             uint256 walletBalance = token.balanceOf(wallet);
 
             vm.prank(leaf.account);
-            uint256 claimedAmount = distributor.claim(
+            uint256 claimedAmount = rewards.claim(
                 leaf.epoch,
                 leaf.account,
                 leaf.token,
@@ -629,7 +629,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             assertEq(token.balanceOf(wallet),       walletBalance - claimedAmount);
             assertEq(token.balanceOf(leaf.account), userBalance   + claimedAmount);
 
-            assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
+            assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
         }
 
         assertEq(token1.balanceOf(wallet), 1_000_000_000e18 - token1Claimed);
@@ -640,7 +640,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         Leaf memory failingLeaf = leaves2[0];
         vm.prank(failingLeaf.account);
         vm.expectRevert("SparkRewards/merkle-root-was-updated");
-        distributor.claim(
+        rewards.claim(
             failingLeaf.epoch,
             failingLeaf.account,
             failingLeaf.token,
@@ -652,7 +652,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         // Step 3: Update merkle root
 
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(complexRoot2);
+        rewards.setMerkleRoot(complexRoot2);
 
         // Step 4: Claim from most users with the second file (some users don't claim that claimed in first file)
 
@@ -663,10 +663,10 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
 
             uint256 userBalance       = token.balanceOf(leaf.account);
             uint256 walletBalance     = token.balanceOf(wallet);
-            uint256 cumulativeClaimed = distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch);
+            uint256 cumulativeClaimed = rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch);
 
             vm.prank(leaf.account);
-            uint256 claimedAmount = distributor.claim(
+            uint256 claimedAmount = rewards.claim(
                 leaf.epoch,
                 leaf.account,
                 leaf.token,
@@ -685,7 +685,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             assertEq(token.balanceOf(leaf.account), userBalance   + claimedAmount);
 
             // After claim state is set to the value in the latest file
-            assertEq(distributor.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), leaf.cumulativeAmount);
+            assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), leaf.cumulativeAmount);
         }
 
         // Same assertions used because it was cumulated in the second loop
@@ -716,17 +716,17 @@ contract SparkRewardsClaimHardcodedTests is SparkRewardsClaimTestBase {
         proof.push(0xd3e89f852744a1795a80bb9ca20e1fc04b3362c3b32c704697581b2ac0aeee08);
 
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(root);
+        rewards.setMerkleRoot(root);
     }
 
     function test_claim() public {
         assertEq(token1.balanceOf(wallet),  1_000_000_000e18);
         assertEq(token1.balanceOf(account), 0);
 
-        assertEq(distributor.cumulativeClaimed(account, token, epoch), 0);
+        assertEq(rewards.cumulativeClaimed(account, token, epoch), 0);
 
         vm.prank(account);
-        uint256 amount = distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
+        uint256 amount = rewards.claim(epoch, account, token, cumulativeAmount, root, proof);
 
         assertEq(amount, 1000e18);
 
@@ -734,20 +734,20 @@ contract SparkRewardsClaimHardcodedTests is SparkRewardsClaimTestBase {
         assertEq(token1.balanceOf(account), 1000e18);
 
 
-        assertEq(distributor.cumulativeClaimed(account, token, epoch), 1000e18);
+        assertEq(rewards.cumulativeClaimed(account, token, epoch), 1000e18);
     }
 
     function test_claim_cumulativeClaiming() public {
         // Do first claim
         vm.prank(account);
-        uint256 amount = distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
+        uint256 amount = rewards.claim(epoch, account, token, cumulativeAmount, root, proof);
 
         assertEq(amount, 1000e18);
 
         assertEq(token1.balanceOf(wallet),  1_000_000_000e18 - 1000e18);
         assertEq(token1.balanceOf(account), 1000e18);
 
-        assertEq(distributor.cumulativeClaimed(account, token, epoch), 1000e18);
+        assertEq(rewards.cumulativeClaimed(account, token, epoch), 1000e18);
 
         // Set new root
         root = 0x3ad180d45b269158a2a43cd36b90dec892aeaf3b841eff43869286d542fe0f98;
@@ -761,17 +761,17 @@ contract SparkRewardsClaimHardcodedTests is SparkRewardsClaimTestBase {
         proof[3] = 0xf6442853be236c0988a1b18b85479c6d9fac0e1ac92814a7dea8d7db78d3d221;
 
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(root);
+        rewards.setMerkleRoot(root);
 
         vm.prank(account);
-        amount = distributor.claim(epoch, account, token, cumulativeAmount, root, proof);
+        amount = rewards.claim(epoch, account, token, cumulativeAmount, root, proof);
 
         assertEq(amount, 500e18);
 
         assertEq(token1.balanceOf(wallet),  1_000_000_000e18 - 1500e18);
         assertEq(token1.balanceOf(account), 1500e18);
 
-        assertEq(distributor.cumulativeClaimed(account, token, epoch), 1500e18);
+        assertEq(rewards.cumulativeClaimed(account, token, epoch), 1500e18);
     }
 
     // Test for a Merkle Tree of 100k claimers
@@ -802,22 +802,22 @@ contract SparkRewardsClaimHardcodedTests is SparkRewardsClaimTestBase {
         bigProof[16] = 0xd4ae2dc050e58cf4c19700ab97ac40059c1cb232de71ba4f48ae2444f246c462;
 
         vm.prank(merkleRootAdmin);
-        distributor.setMerkleRoot(root);
+        rewards.setMerkleRoot(root);
 
         assertEq(token1.balanceOf(wallet),  1_000_000_000e18);
         assertEq(token1.balanceOf(account), 0);
 
-        assertEq(distributor.cumulativeClaimed(account, token, epoch), 0);
+        assertEq(rewards.cumulativeClaimed(account, token, epoch), 0);
 
         vm.prank(account);
-        uint256 amount = distributor.claim(epoch, account, token, cumulativeAmount, root, bigProof);
+        uint256 amount = rewards.claim(epoch, account, token, cumulativeAmount, root, bigProof);
 
         assertEq(amount, cumulativeAmount);
 
         assertEq(token1.balanceOf(wallet),  1_000_000_000e18 - cumulativeAmount);
         assertEq(token1.balanceOf(account), cumulativeAmount);
 
-        assertEq(distributor.cumulativeClaimed(account, token, epoch), cumulativeAmount);
+        assertEq(rewards.cumulativeClaimed(account, token, epoch), cumulativeAmount);
     }
 
 }
