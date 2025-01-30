@@ -21,18 +21,16 @@ contract SparkRewardsTestBase is Test {
     address admin           = makeAddr("admin");
     address epochAdmin      = makeAddr("epochAdmin");
     address merkleRootAdmin = makeAddr("merkleRootAdmin");
-    address walletAdmin     = makeAddr("walletAdmin");
 
-    bytes32 public constant EPOCH_ROLE       = keccak256("EPOCH_ROLE");
-    bytes32 public constant MERKLE_ROOT_ROLE = keccak256("MERKLE_ROOT_ROLE");
-    bytes32 public constant WALLET_ROLE      = keccak256("WALLET_ROLE");
+    bytes32 public constant DEFAULT_ADMIN_ROLE = 0x0;
+    bytes32 public constant EPOCH_ROLE         = keccak256("EPOCH_ROLE");
+    bytes32 public constant MERKLE_ROOT_ROLE   = keccak256("MERKLE_ROOT_ROLE");
 
     function setUp() public virtual {
         rewards = new SparkRewards(admin);
         vm.startPrank(admin);
         rewards.grantRole(EPOCH_ROLE,       epochAdmin);
         rewards.grantRole(MERKLE_ROOT_ROLE, merkleRootAdmin);
-        rewards.grantRole(WALLET_ROLE,      walletAdmin);
         vm.stopPrank();
     }
 
@@ -40,11 +38,11 @@ contract SparkRewardsTestBase is Test {
 
 contract SparkRewardsAdminFailureTests is SparkRewardsTestBase {
 
-    function test_setWallet_notWalletRole() public {
+    function test_setWallet_notAdminRole() public {
         vm.expectRevert(abi.encodeWithSignature(
             "AccessControlUnauthorizedAccount(address,bytes32)",
             address(this),
-            WALLET_ROLE
+            DEFAULT_ADMIN_ROLE
         ));
         rewards.setWallet(makeAddr("newWallet"));
     }
@@ -81,14 +79,14 @@ contract SparkRewardsAdminSuccessTests is SparkRewardsTestBase {
 
         assertEq(rewards.wallet(), address(0));
 
-        vm.prank(walletAdmin);
+        vm.prank(admin);
         vm.expectEmit(address(rewards));
         emit WalletUpdated(address(0), wallet1);
         rewards.setWallet(wallet1);
 
         assertEq(rewards.wallet(), wallet1);
 
-        vm.prank(walletAdmin);
+        vm.prank(admin);
         vm.expectEmit(address(rewards));
         emit WalletUpdated(wallet1, wallet2);
         rewards.setWallet(wallet2);
@@ -158,7 +156,7 @@ contract SparkRewardsClaimTestBase is SparkRewardsTestBase {
 
         super.setUp();
 
-        vm.prank(walletAdmin);
+        vm.prank(admin);
         rewards.setWallet(address(wallet));
 
         token1.transfer(address(wallet), 1_000_000_000e18);
@@ -245,7 +243,7 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
     function testFuzz_claim_invalidEpoch(uint256 index) public {
         index = _bound(index, 0, valuesLength);
 
-        Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
+        Leaf memory leaf = parseLeaf(index, vm.readFile(filePath1));
 
         leaf.epoch += 1;
 
@@ -257,7 +255,7 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
     function testFuzz_claim_invalidAccount(uint256 index) public {
         index = _bound(index, 0, valuesLength);
 
-        Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
+        Leaf memory leaf = parseLeaf(index, vm.readFile(filePath1));
 
         leaf.account = makeAddr("fakeAccount");
 
@@ -269,7 +267,7 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
     function testFuzz_claim_invalidToken(uint256 index) public {
         index = _bound(index, 0, valuesLength);
 
-        Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
+        Leaf memory leaf = parseLeaf(index, vm.readFile(filePath1));
 
         leaf.token = makeAddr("fakeToken");
 
@@ -281,7 +279,7 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
     function testFuzz_claim_invalidCumulativeAmount(uint256 index) public {
         index = _bound(index, 0, valuesLength);
 
-        Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
+        Leaf memory leaf = parseLeaf(index, vm.readFile(filePath1));
 
         leaf.cumulativeAmount += 1;
 
@@ -293,7 +291,7 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
     function test_claim_nothingToClaim(uint256 index) public {
         index = _bound(index, 0, valuesLength);
 
-        Leaf memory leaf = parseLeaf(0, vm.readFile(filePath1));
+        Leaf memory leaf = parseLeaf(index, vm.readFile(filePath1));
 
         vm.prank(leaf.account);
         rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
