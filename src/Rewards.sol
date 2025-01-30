@@ -15,7 +15,9 @@ contract Rewards is AccessControl {
     /*** Events                                                                                 ***/
     /**********************************************************************************************/
 
-    event Claimed(address indexed account, uint256 amount);  // Add token, epoch
+    event Claimed(
+        uint256 indexed epoch, address indexed account, address indexed token, uint256 amount
+    );
     event EpochIsClosed(uint256 indexed epoch, bool isClosed);
     event MerkleRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
     event WalletUpdated(address indexed oldWallet, address indexed newWallet);
@@ -97,7 +99,7 @@ contract Rewards is AccessControl {
         // Send the token
         claimedAmount = cumulativeAmount - preClaimed;
         IERC20(token).safeTransferFrom(wallet, account, claimedAmount);
-        emit Claimed(account, claimedAmount);
+        emit Claimed(epoch, account, token, claimedAmount);
     }
 
 }
