@@ -43,9 +43,8 @@ contract Rewards is AccessControl {
     /*** Constructor                                                                            ***/
     /**********************************************************************************************/
 
-    // TODO: Refactor to pass in owner
-    constructor() {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    constructor(address admin) {
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
     /**********************************************************************************************/

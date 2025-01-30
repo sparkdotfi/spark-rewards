@@ -18,6 +18,7 @@ contract RewardsTestBase is Test {
 
     Rewards public distributor;
 
+    address admin           = makeAddr("admin");
     address epochAdmin      = makeAddr("epochAdmin");
     address merkleRootAdmin = makeAddr("merkleRootAdmin");
     address walletAdmin     = makeAddr("walletAdmin");
@@ -27,11 +28,12 @@ contract RewardsTestBase is Test {
     bytes32 public constant WALLET_ROLE      = keccak256("WALLET_ROLE");
 
     function setUp() public virtual {
-        distributor = new Rewards();
-
+        distributor = new Rewards(admin);
+        vm.startPrank(admin);
         distributor.grantRole(EPOCH_ROLE,       epochAdmin);
         distributor.grantRole(MERKLE_ROOT_ROLE, merkleRootAdmin);
         distributor.grantRole(WALLET_ROLE,      walletAdmin);
+        vm.stopPrank();
     }
 
 }
