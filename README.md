@@ -7,7 +7,7 @@
 [foundry]: https://getfoundry.sh/
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
 
-The `Rewards` smart contract is designed to facilitate the distribution of ERC20 tokens based on a Merkle tree. The contract allows administrators to manage epochs, update Merkle roots, and enable or disable epochs for claims. Users can claim tokens for a specific epoch by providing a valid Merkle proof.
+The `SparkRewards` smart contract is designed to facilitate the distribution of ERC20 tokens based on a Merkle tree. The contract allows administrators to manage epochs, update Merkle roots, and enable or disable epochs for claims. Users can claim tokens for a specific epoch by providing a valid Merkle proof.
 
 ## Usage
 
@@ -52,30 +52,51 @@ make deploy
      - Manage epoch status (enable/disable).
      - Set rewards wallet.
 
+## Key Features
+
+### 1. **Merkle Root Validation**
+   - The contract uses a Merkle root to verify claims.
+   - Claims are validated using Merkle proofs, ensuring only eligible users can claim tokens.
+
+### 2. **Epoch Management**
+   - Claims are organized into distinct epochs.
+   - Administrators can open or close epochs to manage claim periods.
+
+### 3. **Cumulative Claim Tracking**
+   - The Merkle root can be updated, with claims tracked cumulatively across epochs.
+   - This enables ongoing distributions without users having to claim every single distribution, as rewards accumulate.
+      - For example, if this contract is used for weekly rewards, a user doesn't need to claim each week's rewards separately but can choose to claim all accumulated rewards after 4 weeks, reducing transaction costs.
+
+### 4. **External Wallet for Rewards**
+   - The contract pulls tokens from a specified wallet for claims.
+   - Administrators can set or update the wallet address.
+
+### 5. **Role-Based Controls**
+   - The contract implements role-based access control:
+     - **EPOCH_ROLE**: Manages epoch status (open/close).
+     - **MERKLE_ROOT_ROLE**: Updates the Merkle root.
+     - **WALLET_ROLE**: Sets the rewards wallet.
+
 ## Functions
 
 ### **Admin Functions**
 1. `setWallet(address wallet_)`
    - Sets or updates the wallet address from which tokens are pulled for claims.
-   - Accessible only to the contract owner.
+   - Requires `WALLET_ROLE`.
+   - Emits a `WalletUpdated` event.
 
 2. `setMerkleRoot(bytes32 merkleRoot_)`
    - Updates the Merkle root for claims verification.
-   - Emits a `MerkelRootUpdated` event.
+   - Requires `MERKLE_ROOT_ROLE`.
+   - Emits a `MerkleRootUpdated` event.
 
-3. `incrementEpoch()`
-   - Increments the current epoch and enables the new epoch for claims.
-   - Emits an `EpochUpdated` event.
-
-4. `enableEpoch(uint256 epoch_)`
-   - Enables an epoch for claims.
-   - Emits an `EpochEnabled` event.
-
-5. `disableEpoch(uint256 epoch_)`
-   - Disables an epoch to prevent claims.
+3. `setEpochClosed(uint256 epoch, bool isClosed)`
+   - Opens or closes an epoch.
+   - Requires `EPOCH_ROLE`.
+   - Emits an `EpochIsClosed` event.
 
 ### **User Functions**
-1. `claim(uint256 epoch_, address account, address token, uint256 cumulativeAmount, bytes32 expectedMerkleRoot, bytes32[] calldata merkleProof)`
+1. `claim(uint256 epoch, address account, address token, uint256 cumulativeAmount, bytes32 expectedMerkleRoot, bytes32[] calldata merkleProof) returns (uint256 claimedAmount)`
    - Allows users to claim tokens for a specific epoch.
    - Validates the claim using:
      - Epoch number.
@@ -86,19 +107,17 @@ make deploy
    - Emits a `Claimed` event upon success.
 
 ## Events
+
 1. **`WalletUpdated(address oldWallet, address newWallet)`**
    - Emitted when the wallet holding rewards is updated by the admin.
 
-2. **`MerkelRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot)`**
+2. **`MerkleRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot)`**
    - Emitted when the Merkle root is updated by the admin.
 
-3. **`EpochUpdated(uint256 oldEpoch, uint256 newEpoch)`**
-   - Emitted when the epoch is incremented.
+3. **`EpochIsClosed(uint256 epoch, bool isClosed)`**
+   - Emitted when an epoch is opened or closed.
 
-4. **`EpochEnabled(uint256 epoch_)`**
-   - Emitted when an epoch is enabled for claims.
-
-5. **`Claimed(address indexed account, uint256 amount)`**
+4. **`Claimed(uint256 indexed epoch, address indexed account, address indexed token, uint256 amount)`**
    - Emitted when a user successfully claims tokens.
 
 ## Example Claim Workflow
@@ -106,6 +125,7 @@ make deploy
 1. **Admin**:
    - Sets the `wallet` address. Requires approval.
    - Updates the Merkle root with eligible claims.
+   - Opens or closes epochs as needed.
 
 2. **User**:
    - Retrieves their proof and data from the Merkle tree.
@@ -116,6 +136,7 @@ make deploy
      - Cumulative amount.
      - Expected Merkle root.
      - Merkle proof.
+
 
 ## Merkle Tree Script
 
