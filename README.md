@@ -35,19 +35,22 @@ make deploy
 
 ### 2. **Epoch Management**
    - Claims are organized into distinct epochs.
-   - Administrators can enable, disable, or increment epochs to manage claim periods.
+   - Administrators can enable or disable epochs to manage claim periods.
 
 ### 3. **Cumulative Claim Tracking**
    - The Merkle root can be updated, with claims tracked cumulatively across epochs.
+   - This enables ongoing distributions without users having to claim every single distribution, as rewards accumulate.
+      - For example, if this contract is used for weekly rewards a user doesn't need to claim each separately week, but can choose to claim all accumulated rewards after 4 weeks for example, reducing the necessary transactions for a user.
 
 ### 4. **External Wallet For Rewards**
    - The contract pulls tokens from a specified wallet for claims.
    - Administrators can set or update the wallet address.
 
-### 5. **Admin Controls**
-   - Only the owner can:
+### 5. **Role Based Controls**
+   - There are distinct roles that can be granted to actors or smart contracts to:
      - Update the Merkle root.
      - Manage epoch status (enable/disable).
+     - Set rewards wallet.
 
 ## Functions
 
@@ -116,7 +119,7 @@ make deploy
 
 ## Merkle Tree Script
 
-This script generates a Merkle Tree from a rewards JSON file and outputs the tree structure, proofs, and root to a specified folder.
+The `generateMerkleTree.js` script generates a Merkle Tree from a rewards JSON input file and outputs the tree structure, proofs, and root to a specified filepath. You can find example input files in the `merkle-tree-scripts/input/` folder to see the required formatting of the input. To generate randomized input for testing, see the Generate Input Script section below.
 
 ### Prerequisites
 
@@ -133,6 +136,23 @@ This script generates a Merkle Tree from a rewards JSON file and outputs the tre
 Example:
    ```bash
    node generateMerkleTree.js input/example1.json output/merkleTree.json
+   ```
+
+## Generate Input Script
+
+The `generateInput.js` script is used to generate large input files of randomized and complex data to generate Merkle trees for testing. The generated input file can be used by generateMerkleTree.js script to then generate a complex Merkle tree for testing purposes. You can edit the constants of the `generateInput.js` file to your needs.
+
+### Prerequisites
+
+1. **Install Node.js**: Ensure Node.js is installed. Download it from [Node.js](https://nodejs.org/).
+2. **Install Dependencies**:
+   ```bash
+   npm install
+    ```
+3. **Run the Script**: 
+   ```bash
+   cd merkle-tree-scripts
+   node generateInput.js
    ```
 
 ***
