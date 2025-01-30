@@ -7,7 +7,7 @@ import { MerkleProof }       from "@openzeppelin/contracts/utils/cryptography/Me
 
 // TODO: Ascii and rename
 
-contract Rewards is AccessControl {
+contract SparkRewards is AccessControl {
 
     using SafeERC20 for IERC20;
 
@@ -78,9 +78,9 @@ contract Rewards is AccessControl {
         bytes32 expectedMerkleRoot,
         bytes32[] calldata merkleProof
     ) external returns (uint256 claimedAmount) {
-        require(account == msg.sender,            "Rewards/invalid-account");
-        require(merkleRoot == expectedMerkleRoot, "Rewards/merkle-root-was-updated");
-        require(!epochClosed[epoch],              "Rewards/epoch-not-enabled");
+        require(account == msg.sender,            "SparkRewards/invalid-account");
+        require(merkleRoot == expectedMerkleRoot, "SparkRewards/merkle-root-was-updated");
+        require(!epochClosed[epoch],              "SparkRewards/epoch-not-enabled");
 
         // Construct the leaf
         bytes32 leaf = keccak256(bytes.concat(
@@ -88,11 +88,11 @@ contract Rewards is AccessControl {
         ));
 
         // Verify the proof
-        require(MerkleProof.verify(merkleProof, expectedMerkleRoot, leaf), "Rewards/invalid-proof");
+        require(MerkleProof.verify(merkleProof, expectedMerkleRoot, leaf), "SparkRewards/invalid-proof");
 
         // Mark it claimed
         uint256 preClaimed = cumulativeClaimed[account][token][epoch];
-        require(preClaimed < cumulativeAmount, "Rewards/nothing-to-claim");
+        require(preClaimed < cumulativeAmount, "SparkRewards/nothing-to-claim");
         cumulativeClaimed[account][token][epoch] = cumulativeAmount;
 
         // Send the token

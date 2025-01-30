@@ -6,7 +6,7 @@ import "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 }  from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import { Rewards } from "../src/Rewards.sol";
+import { SparkRewards } from "../src/SparkRewards.sol";
 
 contract Token is ERC20 {
     constructor(string memory name, string memory symbol, uint256 supply) ERC20(name, symbol) {
@@ -14,9 +14,9 @@ contract Token is ERC20 {
     }
 }
 
-contract RewardsTestBase is Test {
+contract SparkRewardsTestBase is Test {
 
-    Rewards public distributor;
+    SparkRewards public distributor;
 
     address admin           = makeAddr("admin");
     address epochAdmin      = makeAddr("epochAdmin");
@@ -28,7 +28,7 @@ contract RewardsTestBase is Test {
     bytes32 public constant WALLET_ROLE      = keccak256("WALLET_ROLE");
 
     function setUp() public virtual {
-        distributor = new Rewards(admin);
+        distributor = new SparkRewards(admin);
         vm.startPrank(admin);
         distributor.grantRole(EPOCH_ROLE,       epochAdmin);
         distributor.grantRole(MERKLE_ROOT_ROLE, merkleRootAdmin);
@@ -38,7 +38,7 @@ contract RewardsTestBase is Test {
 
 }
 
-contract RewardsAdminFailureTests is RewardsTestBase {
+contract SparkRewardsAdminFailureTests is SparkRewardsTestBase {
 
     function test_setWallet_notWalletRole() public {
         vm.expectRevert(abi.encodeWithSignature(
@@ -69,7 +69,7 @@ contract RewardsAdminFailureTests is RewardsTestBase {
 
 }
 
-contract RewardsAdminSuccessTests is RewardsTestBase {
+contract SparkRewardsAdminSuccessTests is SparkRewardsTestBase {
 
     event EpochIsClosed(uint256 indexed epoch, bool isClosed);
     event MerkleRootUpdated(bytes32 oldMerkleRoot, bytes32 newMerkleRoot);
@@ -130,7 +130,7 @@ contract RewardsAdminSuccessTests is RewardsTestBase {
 
 }
 
-contract RewardsClaimTestBase is RewardsTestBase {
+contract SparkRewardsClaimTestBase is SparkRewardsTestBase {
 
     IERC20 public token1;
     IERC20 public token2;
@@ -209,7 +209,7 @@ contract RewardsClaimTestBase is RewardsTestBase {
 
 }
 
-contract RewardsClaimFailureTests is RewardsClaimTestBase {
+contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
 
     bytes32 root;
 
@@ -225,12 +225,12 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
     }
 
     function test_claim_accountNotMsgSender() public {
-        vm.expectRevert("Rewards/invalid-account");
+        vm.expectRevert("SparkRewards/invalid-account");
         distributor.claim(1, makeAddr("account"), address(token1), 1, root, new bytes32[](0));
     }
 
     function test_claim_merkleRootNotExpected() public {
-        vm.expectRevert("Rewards/merkle-root-was-updated");
+        vm.expectRevert("SparkRewards/merkle-root-was-updated");
         distributor.claim(1, address(this), address(token1), 1, "root2", new bytes32[](0));
     }
 
@@ -238,7 +238,7 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
         vm.prank(epochAdmin);
         distributor.setEpochClosed(1, true);
 
-        vm.expectRevert("Rewards/epoch-not-enabled");
+        vm.expectRevert("SparkRewards/epoch-not-enabled");
         distributor.claim(1, address(this), address(token1), 1, root, new bytes32[](0));
     }
 
@@ -250,7 +250,7 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
         leaf.epoch += 1;
 
         vm.prank(leaf.account);
-        vm.expectRevert("Rewards/invalid-proof");
+        vm.expectRevert("SparkRewards/invalid-proof");
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
@@ -262,7 +262,7 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
         leaf.account = makeAddr("fakeAccount");
 
         vm.prank(leaf.account);
-        vm.expectRevert("Rewards/invalid-proof");
+        vm.expectRevert("SparkRewards/invalid-proof");
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
@@ -274,7 +274,7 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
         leaf.token = makeAddr("fakeToken");
 
         vm.prank(leaf.account);
-        vm.expectRevert("Rewards/invalid-proof");
+        vm.expectRevert("SparkRewards/invalid-proof");
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
@@ -286,7 +286,7 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
         leaf.cumulativeAmount += 1;
 
         vm.prank(leaf.account);
-        vm.expectRevert("Rewards/invalid-proof");
+        vm.expectRevert("SparkRewards/invalid-proof");
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
@@ -299,13 +299,13 @@ contract RewardsClaimFailureTests is RewardsClaimTestBase {
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
 
         vm.prank(leaf.account);
-        vm.expectRevert("Rewards/nothing-to-claim");
+        vm.expectRevert("SparkRewards/nothing-to-claim");
         distributor.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
 
 }
 
-contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
+contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
 
     // Using storage to avoid stack too deep error
 
@@ -527,7 +527,7 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
 
         Leaf memory failingLeaf = leaves2[0];
         vm.prank(failingLeaf.account);
-        vm.expectRevert("Rewards/merkle-root-was-updated");
+        vm.expectRevert("SparkRewards/merkle-root-was-updated");
         distributor.claim(
             failingLeaf.epoch,
             failingLeaf.account,
@@ -639,7 +639,7 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
 
         Leaf memory failingLeaf = leaves2[0];
         vm.prank(failingLeaf.account);
-        vm.expectRevert("Rewards/merkle-root-was-updated");
+        vm.expectRevert("SparkRewards/merkle-root-was-updated");
         distributor.claim(
             failingLeaf.epoch,
             failingLeaf.account,
@@ -695,7 +695,7 @@ contract RewardsClaimFileBasedTests is RewardsClaimTestBase {
 
 }
 
-contract RewardsClaimHardcodedTests is RewardsClaimTestBase {
+contract SparkRewardsClaimHardcodedTests is SparkRewardsClaimTestBase {
 
     address account = 0x1111111111111111111111111111111111111111;
     address token   = 0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f;  // token1

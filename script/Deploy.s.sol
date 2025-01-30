@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import {Script, console} from "forge-std/Script.sol";
-import {Rewards} from "../src/Rewards.sol";
+import {SparkRewards} from "../src/SparkRewards.sol";
 
 contract Deploy is Script {
     bytes32 public constant EPOCH_ROLE       = keccak256("EPOCH_ROLE");
@@ -22,7 +22,7 @@ contract Deploy is Script {
         address merkleRootAdmin = vm.parseJsonAddress(config, ".merkle_role");
         address walletAdmin = vm.parseJsonAddress(config, ".wallet_role");
 
-        console.log("Deploying Rewards contract with the following parameters:");
+        console.log("Deploying SparkRewards contract with the following parameters:");
         console.log("Admin:", admin);
         console.log("Wallet:", wallet);
         console.log("Epoch Admin:", epochAdmin);
@@ -33,7 +33,7 @@ contract Deploy is Script {
         vm.startBroadcast();
 
         // Deploy the contract using the parsed admin address
-        Rewards rewards = new Rewards(msg.sender);
+        SparkRewards rewards = new SparkRewards(msg.sender);
 
         // Set the wallet using the parsed wallet address
         rewards.setWallet(wallet);
