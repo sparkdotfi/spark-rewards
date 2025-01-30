@@ -5,7 +5,16 @@ import { AccessControl }     from "@openzeppelin/contracts/access/AccessControl.
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { MerkleProof }       from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-// TODO: Ascii and rename
+/*
+
+███████╗██████╗  █████╗ ██████╗ ██╗  ██╗    ██████╗ ███████╗██╗    ██╗ █████╗ ██████╗ ██████╗ ███████╗
+██╔════╝██╔══██╗██╔══██╗██╔══██╗██║ ██╔╝    ██╔══██╗██╔════╝██║    ██║██╔══██╗██╔══██╗██╔══██╗██╔════╝
+███████╗██████╔╝███████║██████╔╝█████╔╝     ██████╔╝█████╗  ██║ █╗ ██║███████║██████╔╝██║  ██║███████╗
+╚════██║██╔═══╝ ██╔══██║██╔══██╗██╔═██╗     ██╔══██╗██╔══╝  ██║███╗██║██╔══██║██╔══██╗██║  ██║╚════██║
+███████║██║     ██║  ██║██║  ██║██║  ██╗    ██║  ██║███████╗╚███╔███╔╝██║  ██║██║  ██║██████╔╝███████║
+╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝    ╚═╝  ╚═╝╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝
+
+*/
 
 contract SparkRewards is AccessControl {
 
@@ -28,7 +37,6 @@ contract SparkRewards is AccessControl {
 
     bytes32 public constant EPOCH_ROLE       = keccak256("EPOCH_ROLE");
     bytes32 public constant MERKLE_ROOT_ROLE = keccak256("MERKLE_ROOT_ROLE");
-    bytes32 public constant WALLET_ROLE      = keccak256("WALLET_ROLE");
 
     address public wallet;
     bytes32 public merkleRoot;
@@ -51,7 +59,7 @@ contract SparkRewards is AccessControl {
     /*** Configuration functions                                                                ***/
     /**********************************************************************************************/
 
-    function setWallet(address wallet_) public onlyRole(WALLET_ROLE) {
+    function setWallet(address wallet_) public onlyRole(DEFAULT_ADMIN_ROLE) {
         emit WalletUpdated(wallet, wallet_);
         wallet = wallet_;
     }
