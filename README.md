@@ -35,31 +35,6 @@ make deploy
 
 ### 2. **Epoch Management**
    - Claims are organized into distinct epochs.
-   - Administrators can enable or disable epochs to manage claim periods.
-
-### 3. **Cumulative Claim Tracking**
-   - The Merkle root can be updated, with claims tracked cumulatively across epochs.
-   - This enables ongoing distributions without users having to claim every single distribution, as rewards accumulate.
-      - For example, if this contract is used for weekly rewards a user doesn't need to claim each separately week, but can choose to claim all accumulated rewards after 4 weeks for example, reducing the necessary transactions for a user.
-
-### 4. **External Wallet For Rewards**
-   - The contract pulls tokens from a specified wallet for claims.
-   - Administrators can set or update the wallet address.
-
-### 5. **Role Based Controls**
-   - There are distinct roles that can be granted to actors or smart contracts to:
-     - Update the Merkle root.
-     - Manage epoch status (enable/disable).
-     - Set rewards wallet.
-
-## Key Features
-
-### 1. **Merkle Root Validation**
-   - The contract uses a Merkle root to verify claims.
-   - Claims are validated using Merkle proofs, ensuring only eligible users can claim tokens.
-
-### 2. **Epoch Management**
-   - Claims are organized into distinct epochs.
    - Administrators can open or close epochs to manage claim periods.
 
 ### 3. **Cumulative Claim Tracking**
