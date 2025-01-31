@@ -50,14 +50,13 @@ make deploy
    - The contract implements role-based access control:
      - **EPOCH_ROLE**: Manages epoch status (open/close).
      - **MERKLE_ROOT_ROLE**: Updates the Merkle root.
-     - **WALLET_ROLE**: Sets the rewards wallet.
 
 ## Functions
 
 ### **Admin Functions**
 1. `setWallet(address wallet_)`
    - Sets or updates the wallet address from which tokens are pulled for claims.
-   - Requires `WALLET_ROLE`.
+   - Requires `DEFAULT_ADMIN_ROLE`.
    - Emits a `WalletUpdated` event.
 
 2. `setMerkleRoot(bytes32 merkleRoot_)`
