@@ -35,8 +35,11 @@ contract Deploy is Script {
         rewards.grantRole(EPOCH_ROLE, epochAdmin);
         rewards.grantRole(MERKLE_ROOT_ROLE, merkleRootAdmin);
 
-        // Transfer the ownership to the admin
+        // Transfer the ownership to the admin address
         rewards.grantRole(rewards.DEFAULT_ADMIN_ROLE(), admin);
+
+        // Revoke admin role from deployer
+        rewards.revokeRole(rewards.DEFAULT_ADMIN_ROLE(), address(this));
 
         vm.stopBroadcast();
 
