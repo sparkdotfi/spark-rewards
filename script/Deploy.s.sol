@@ -39,7 +39,7 @@ contract Deploy is Script {
         rewards.grantRole(rewards.DEFAULT_ADMIN_ROLE(), admin);
 
         // Revoke admin role from deployer
-        rewards.revokeRole(rewards.DEFAULT_ADMIN_ROLE(), address(this));
+        rewards.revokeRole(rewards.DEFAULT_ADMIN_ROLE(), msg.sender);
 
         vm.stopBroadcast();
 
