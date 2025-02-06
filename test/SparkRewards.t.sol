@@ -222,11 +222,6 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
         rewards.setMerkleRoot(root);
     }
 
-    function test_claim_accountNotMsgSender() public {
-        vm.expectRevert("SparkRewards/invalid-account");
-        rewards.claim(1, makeAddr("account"), address(token1), 1, root, new bytes32[](0));
-    }
-
     function test_claim_merkleRootNotExpected() public {
         vm.expectRevert("SparkRewards/merkle-root-was-updated");
         rewards.claim(1, address(this), address(token1), 1, "root2", new bytes32[](0));
@@ -247,7 +242,6 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
 
         leaf.epoch += 1;
 
-        vm.prank(leaf.account);
         vm.expectRevert("SparkRewards/invalid-proof");
         rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
@@ -259,7 +253,6 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
 
         leaf.account = makeAddr("fakeAccount");
 
-        vm.prank(leaf.account);
         vm.expectRevert("SparkRewards/invalid-proof");
         rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
@@ -271,7 +264,6 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
 
         leaf.token = makeAddr("fakeToken");
 
-        vm.prank(leaf.account);
         vm.expectRevert("SparkRewards/invalid-proof");
         rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
@@ -283,7 +275,6 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
 
         leaf.cumulativeAmount += 1;
 
-        vm.prank(leaf.account);
         vm.expectRevert("SparkRewards/invalid-proof");
         rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
@@ -293,10 +284,8 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
 
         Leaf memory leaf = parseLeaf(index, vm.readFile(filePath1));
 
-        vm.prank(leaf.account);
         rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
 
-        vm.prank(leaf.account);
         vm.expectRevert("SparkRewards/nothing-to-claim");
         rewards.claim(leaf.epoch, leaf.account, leaf.token, leaf.cumulativeAmount, root, leaf.proof);
     }
@@ -354,7 +343,6 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
 
         assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 0);
 
-        vm.prank(leaf.account);
         uint256 claimedAmount = rewards.claim(
             leaf.epoch,
             leaf.account,
@@ -388,7 +376,39 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
 
         assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 0);
 
-        vm.prank(leaf.account);
+        uint256 claimedAmount = rewards.claim(
+            leaf.epoch,
+            leaf.account,
+            leaf.token,
+            leaf.cumulativeAmount,
+            root,
+            leaf.proof
+        );
+
+        assertEq(claimedAmount, leaf.cumulativeAmount);
+
+        assertEq(token.balanceOf(wallet),       1_000_000_000e18 - claimedAmount);
+        assertEq(token.balanceOf(leaf.account), claimedAmount);
+
+        assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
+    }
+
+    function testFuzz_claim_singleClaim_otherUser(uint256 index, address user) public {
+        vm.prank(merkleRootAdmin);
+        rewards.setMerkleRoot(complexRoot1);
+
+        index = _bound(index, 0, valuesLength);
+
+        ( bytes32 root, Leaf memory leaf ) = getClaimParams(index, filePath1);
+
+        IERC20 token = IERC20(leaf.token);
+
+        assertEq(token.balanceOf(wallet),       1_000_000_000e18);
+        assertEq(token.balanceOf(leaf.account), 0);
+
+        assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 0);
+
+        vm.prank(user);
         uint256 claimedAmount = rewards.claim(
             leaf.epoch,
             leaf.account,
@@ -438,7 +458,6 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             uint256 userBalance   = token.balanceOf(leaf.account);
             uint256 walletBalance = token.balanceOf(wallet);
 
-            vm.prank(leaf.account);
             uint256 claimedAmount = rewards.claim(
                 leaf.epoch,
                 leaf.account,
@@ -497,7 +516,6 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             uint256 userBalance   = token.balanceOf(leaf.account);
             uint256 walletBalance = token.balanceOf(wallet);
 
-            vm.prank(leaf.account);
             uint256 claimedAmount = rewards.claim(
                 leaf.epoch,
                 leaf.account,
@@ -524,7 +542,6 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         // Step 2: Demonstrate claims can't happen until root is updated
 
         Leaf memory failingLeaf = leaves2[0];
-        vm.prank(failingLeaf.account);
         vm.expectRevert("SparkRewards/merkle-root-was-updated");
         rewards.claim(
             failingLeaf.epoch,
@@ -551,7 +568,6 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             uint256 walletBalance     = token.balanceOf(wallet);
             uint256 cumulativeClaimed = rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch);
 
-            vm.prank(leaf.account);
             uint256 claimedAmount = rewards.claim(
                 leaf.epoch,
                 leaf.account,
@@ -609,7 +625,6 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             uint256 userBalance   = token.balanceOf(leaf.account);
             uint256 walletBalance = token.balanceOf(wallet);
 
-            vm.prank(leaf.account);
             uint256 claimedAmount = rewards.claim(
                 leaf.epoch,
                 leaf.account,
@@ -636,7 +651,6 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         // Step 2: Demonstrate claims can't happen until root is updated
 
         Leaf memory failingLeaf = leaves2[0];
-        vm.prank(failingLeaf.account);
         vm.expectRevert("SparkRewards/merkle-root-was-updated");
         rewards.claim(
             failingLeaf.epoch,
@@ -663,7 +677,6 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
             uint256 walletBalance     = token.balanceOf(wallet);
             uint256 cumulativeClaimed = rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch);
 
-            vm.prank(leaf.account);
             uint256 claimedAmount = rewards.claim(
                 leaf.epoch,
                 leaf.account,
@@ -723,7 +736,24 @@ contract SparkRewardsClaimHardcodedTests is SparkRewardsClaimTestBase {
 
         assertEq(rewards.cumulativeClaimed(account, token, epoch), 0);
 
-        vm.prank(account);
+        uint256 amount = rewards.claim(epoch, account, token, cumulativeAmount, root, proof);
+
+        assertEq(amount, 1000e18);
+
+        assertEq(token1.balanceOf(wallet),  1_000_000_000e18 - 1000e18);
+        assertEq(token1.balanceOf(account), 1000e18);
+
+
+        assertEq(rewards.cumulativeClaimed(account, token, epoch), 1000e18);
+    }
+
+    function test_claim_otherUser(address user) public {
+        assertEq(token1.balanceOf(wallet),  1_000_000_000e18);
+        assertEq(token1.balanceOf(account), 0);
+
+        assertEq(rewards.cumulativeClaimed(account, token, epoch), 0);
+
+        vm.prank(user);
         uint256 amount = rewards.claim(epoch, account, token, cumulativeAmount, root, proof);
 
         assertEq(amount, 1000e18);
@@ -737,7 +767,6 @@ contract SparkRewardsClaimHardcodedTests is SparkRewardsClaimTestBase {
 
     function test_claim_cumulativeClaiming() public {
         // Do first claim
-        vm.prank(account);
         uint256 amount = rewards.claim(epoch, account, token, cumulativeAmount, root, proof);
 
         assertEq(amount, 1000e18);
@@ -761,7 +790,6 @@ contract SparkRewardsClaimHardcodedTests is SparkRewardsClaimTestBase {
         vm.prank(merkleRootAdmin);
         rewards.setMerkleRoot(root);
 
-        vm.prank(account);
         amount = rewards.claim(epoch, account, token, cumulativeAmount, root, proof);
 
         assertEq(amount, 500e18);
@@ -807,7 +835,6 @@ contract SparkRewardsClaimHardcodedTests is SparkRewardsClaimTestBase {
 
         assertEq(rewards.cumulativeClaimed(account, token, epoch), 0);
 
-        vm.prank(account);
         uint256 amount = rewards.claim(epoch, account, token, cumulativeAmount, root, bigProof);
 
         assertEq(amount, cumulativeAmount);

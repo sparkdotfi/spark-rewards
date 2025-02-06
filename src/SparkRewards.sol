@@ -86,7 +86,6 @@ contract SparkRewards is AccessControl {
         bytes32 expectedMerkleRoot,
         bytes32[] calldata merkleProof
     ) external returns (uint256 claimedAmount) {
-        require(account == msg.sender,            "SparkRewards/invalid-account");
         require(merkleRoot == expectedMerkleRoot, "SparkRewards/merkle-root-was-updated");
         require(!epochClosed[epoch],              "SparkRewards/epoch-not-enabled");
 
