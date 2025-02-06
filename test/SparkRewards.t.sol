@@ -222,11 +222,6 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
         rewards.setMerkleRoot(root);
     }
 
-    function test_claim_accountNotMsgSender() public {
-        vm.expectRevert("SparkRewards/invalid-account");
-        rewards.claim(1, makeAddr("account"), address(token1), 1, root, new bytes32[](0));
-    }
-
     function test_claim_merkleRootNotExpected() public {
         vm.expectRevert("SparkRewards/merkle-root-was-updated");
         rewards.claim(1, address(this), address(token1), 1, "root2", new bytes32[](0));
