@@ -401,6 +401,39 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
     }
 
+    function testFuzz_claim_singleClaim_otherUser(uint256 index, address user) public {
+        vm.prank(merkleRootAdmin);
+        rewards.setMerkleRoot(complexRoot1);
+
+        index = _bound(index, 0, valuesLength);
+
+        ( bytes32 root, Leaf memory leaf ) = getClaimParams(index, filePath1);
+
+        IERC20 token = IERC20(leaf.token);
+
+        assertEq(token.balanceOf(wallet),       1_000_000_000e18);
+        assertEq(token.balanceOf(leaf.account), 0);
+
+        assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), 0);
+
+        vm.prank(user);
+        uint256 claimedAmount = rewards.claim(
+            leaf.epoch,
+            leaf.account,
+            leaf.token,
+            leaf.cumulativeAmount,
+            root,
+            leaf.proof
+        );
+
+        assertEq(claimedAmount, leaf.cumulativeAmount);
+
+        assertEq(token.balanceOf(wallet),       1_000_000_000e18 - claimedAmount);
+        assertEq(token.balanceOf(leaf.account), claimedAmount);
+
+        assertEq(rewards.cumulativeClaimed(leaf.account, leaf.token, leaf.epoch), claimedAmount);
+    }
+
     function test_claim_e2e_multiUser_multiToken_multiEpoch() public {
         vm.prank(merkleRootAdmin);
         rewards.setMerkleRoot(simpleRoot); // Reading simple tree
