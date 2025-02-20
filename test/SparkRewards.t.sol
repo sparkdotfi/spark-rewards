@@ -223,7 +223,7 @@ contract SparkRewardsClaimFailureTests is SparkRewardsClaimTestBase {
     }
 
     function test_claim_merkleRootNotExpected() public {
-        vm.expectRevert("SparkRewards/merkle-root-was-updated");
+        vm.expectRevert("SparkRewards/merkle-root-mismatch");
         rewards.claim(1, address(this), address(token1), 1, "root2", new bytes32[](0));
     }
 
@@ -542,7 +542,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         // Step 2: Demonstrate claims can't happen until root is updated
 
         Leaf memory failingLeaf = leaves2[0];
-        vm.expectRevert("SparkRewards/merkle-root-was-updated");
+        vm.expectRevert("SparkRewards/merkle-root-mismatch");
         rewards.claim(
             failingLeaf.epoch,
             failingLeaf.account,
@@ -651,7 +651,7 @@ contract RewardsClaimFileBasedTests is SparkRewardsClaimTestBase {
         // Step 2: Demonstrate claims can't happen until root is updated
 
         Leaf memory failingLeaf = leaves2[0];
-        vm.expectRevert("SparkRewards/merkle-root-was-updated");
+        vm.expectRevert("SparkRewards/merkle-root-mismatch");
         rewards.claim(
             failingLeaf.epoch,
             failingLeaf.account,

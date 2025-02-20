@@ -59,7 +59,7 @@ contract SparkRewards is AccessControl {
     /*** Configuration functions                                                                ***/
     /**********************************************************************************************/
 
-    function setWallet(address wallet_) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setWallet(address wallet_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         emit WalletUpdated(wallet, wallet_);
         wallet = wallet_;
     }
@@ -69,9 +69,9 @@ contract SparkRewards is AccessControl {
         merkleRoot = merkleRoot_;
     }
 
-    function setEpochClosed(uint256 epoch, bool isClosed) public onlyRole(EPOCH_ROLE) {
-        epochClosed[epoch] = isClosed;
+    function setEpochClosed(uint256 epoch, bool isClosed) external onlyRole(EPOCH_ROLE) {
         emit EpochIsClosed(epoch, isClosed);
+        epochClosed[epoch] = isClosed;
     }
 
     /**********************************************************************************************/
@@ -86,7 +86,7 @@ contract SparkRewards is AccessControl {
         bytes32 expectedMerkleRoot,
         bytes32[] calldata merkleProof
     ) external returns (uint256 claimedAmount) {
-        require(merkleRoot == expectedMerkleRoot, "SparkRewards/merkle-root-was-updated");
+        require(merkleRoot == expectedMerkleRoot, "SparkRewards/merkle-root-mismatch");
         require(!epochClosed[epoch],              "SparkRewards/epoch-not-enabled");
 
         // Construct the leaf
