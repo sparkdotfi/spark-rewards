@@ -95,7 +95,7 @@ contract SparkRewards is AccessControl {
         ));
 
         // Verify the proof
-        require(MerkleProof.verify(merkleProof, expectedMerkleRoot, leaf), "SparkRewards/invalid-proof");
+        require(MerkleProof.verifyCalldata(merkleProof, expectedMerkleRoot, leaf), "SparkRewards/invalid-proof");
 
         // Mark it claimed
         uint256 preClaimed = cumulativeClaimed[account][token][epoch];

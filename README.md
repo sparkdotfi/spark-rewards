@@ -38,7 +38,7 @@ make deploy
    - Administrators can open or close epochs to manage claim periods.
 
 ### 3. **Cumulative Claim Tracking**
-   - The Merkle root can be updated, with claims tracked cumulatively across epochs.
+   - The Merkle root can be updated, with claims tracked cumulatively for each unique combination of user, token, and epoch.
    - This enables ongoing distributions without users having to claim every single distribution, as rewards accumulate.
       - For example, if this contract is used for weekly rewards, a user doesn't need to claim each week's rewards separately but can choose to claim all accumulated rewards after 4 weeks, reducing transaction costs.
 
@@ -50,6 +50,14 @@ make deploy
    - The contract implements role-based access control:
      - **EPOCH_ROLE**: Manages epoch status (open/close).
      - **MERKLE_ROOT_ROLE**: Updates the Merkle root.
+
+## Merkle Tree Assumptions
+For the spark-rewards cumulative claims to function properly, the Merkle tree is expected to adhere to the following properties:
+
+1. The Merkle tree can contain several epochs.
+2. The Merkle tree's leaves are not removed unless the leaves' epoch is permanently closed.
+3. When new rewards for an epoch come in and a user already has a previous leaf for that (epoch, account, token) the Merkle tree updates that leaf with the cumulative amount.
+4. The Merkle tree's leaves are unique by (epoch, account, token), i.e., there can't be several leaves (differing in amounts only) for the same account, token, and epoch.
 
 ## Functions
 
@@ -123,7 +131,7 @@ The `generateMerkleTree.js` script generates a Merkle Tree from a rewards JSON i
    ```bash
    npm install
     ```
-3. **Run the Script**: 
+3. **Run the Script**:
    ```bash
    cd merkle-tree-scripts
    node generateMerkleTree.js <inputFilePath> <outputFilePath>
@@ -144,7 +152,7 @@ The `generateInput.js` script is used to generate large input files of randomize
    ```bash
    npm install
     ```
-3. **Run the Script**: 
+3. **Run the Script**:
    ```bash
    cd merkle-tree-scripts
    node generateInput.js
