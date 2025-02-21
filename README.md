@@ -35,35 +35,10 @@ make deploy
 
 ### 2. **Epoch Management**
    - Claims are organized into distinct epochs.
-   - Administrators can enable or disable epochs to manage claim periods.
-
-### 3. **Cumulative Claim Tracking**
-   - The Merkle root can be updated, with claims tracked cumulatively across epochs.
-   - This enables ongoing distributions without users having to claim every single distribution, as rewards accumulate.
-      - For example, if this contract is used for weekly rewards a user doesn't need to claim each separately week, but can choose to claim all accumulated rewards after 4 weeks for example, reducing the necessary transactions for a user.
-
-### 4. **External Wallet For Rewards**
-   - The contract pulls tokens from a specified wallet for claims.
-   - Administrators can set or update the wallet address.
-
-### 5. **Role Based Controls**
-   - There are distinct roles that can be granted to actors or smart contracts to:
-     - Update the Merkle root.
-     - Manage epoch status (enable/disable).
-     - Set rewards wallet.
-
-## Key Features
-
-### 1. **Merkle Root Validation**
-   - The contract uses a Merkle root to verify claims.
-   - Claims are validated using Merkle proofs, ensuring only eligible users can claim tokens.
-
-### 2. **Epoch Management**
-   - Claims are organized into distinct epochs.
    - Administrators can open or close epochs to manage claim periods.
 
 ### 3. **Cumulative Claim Tracking**
-   - The Merkle root can be updated, with claims tracked cumulatively across epochs.
+   - The Merkle root can be updated, with claims tracked cumulatively for each unique combination of user, token, and epoch.
    - This enables ongoing distributions without users having to claim every single distribution, as rewards accumulate.
       - For example, if this contract is used for weekly rewards, a user doesn't need to claim each week's rewards separately but can choose to claim all accumulated rewards after 4 weeks, reducing transaction costs.
 
@@ -76,6 +51,14 @@ make deploy
      - **EPOCH_ROLE**: Manages epoch status (open/close).
      - **MERKLE_ROOT_ROLE**: Updates the Merkle root.
      - **WALLET_ROLE**: Sets the rewards wallet.
+
+## Merkle Tree Assumptions
+For the spark-rewards cumulative claims to function properly, the Merkle tree is expected to adhere to the following properties:
+
+1. The Merkle tree can contain several epochs.
+2. The Merkle tree's leaves are not removed unless the leaves' epoch is permanently closed.
+3. When new rewards for an epoch come in and a user already has a previous leaf for that (epoch, account, token) the Merkle tree updates that leaf with the cumulative amount.
+4. The Merkle tree's leaves are unique by (epoch, account, token), i.e., there can't be several leaves (differing in amounts only) for the same account, token, and epoch.
 
 ## Functions
 
@@ -149,7 +132,7 @@ The `generateMerkleTree.js` script generates a Merkle Tree from a rewards JSON i
    ```bash
    npm install
     ```
-3. **Run the Script**: 
+3. **Run the Script**:
    ```bash
    cd merkle-tree-scripts
    node generateMerkleTree.js <inputFilePath> <outputFilePath>
@@ -170,7 +153,7 @@ The `generateInput.js` script is used to generate large input files of randomize
    ```bash
    npm install
     ```
-3. **Run the Script**: 
+3. **Run the Script**:
    ```bash
    cd merkle-tree-scripts
    node generateInput.js
