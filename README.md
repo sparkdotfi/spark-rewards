@@ -27,6 +27,12 @@ forge test
 make deploy
 ```
 
+## Deployments
+
+| Network  | Address                                                                                                                    |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------|
+| Ethereum | [0xbaf21A27622Db71041Bd336a573DDEdC8eB65122](https://etherscan.io/address/0xbaf21A27622Db71041Bd336a573DDEdC8eB65122#code) |
+
 ## Key Features
 
 ### 1. **Merkle Root Validation**
