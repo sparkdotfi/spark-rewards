@@ -32,6 +32,7 @@ make deploy
 | Network  | Address                                                                                                                    |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------|
 | Ethereum | [0xbaf21A27622Db71041Bd336a573DDEdC8eB65122](https://etherscan.io/address/0xbaf21A27622Db71041Bd336a573DDEdC8eB65122#code) |
+| Optimism | [0xAf76856f788519704a9411839614e144FEd52d8a](https://optimistic.etherscan.io/address/0xaf76856f788519704a9411839614e144fed52d8a#code) |
 
 ## Key Features
 
