@@ -163,5 +163,3 @@ The `generateInput.js` script is used to generate large input files of randomize
    cd merkle-tree-scripts
    node generateInput.js
    ```
-
-***
