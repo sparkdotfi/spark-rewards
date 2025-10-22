@@ -33,6 +33,7 @@ make deploy
 | -------- | ---------------------------------------------------------------------------------------------------------------------------|
 | Ethereum | [0xbaf21A27622Db71041Bd336a573DDEdC8eB65122](https://etherscan.io/address/0xbaf21A27622Db71041Bd336a573DDEdC8eB65122#code) |
 | Optimism | [0xf94473Bf6EF648638A7b1eEef354fE440721ef41](https://optimistic.etherscan.io/address/0xf94473Bf6EF648638A7b1eEef354fE440721ef41#code) |
+| Avalanche | [0xAf76856f788519704a9411839614e144FEd52d8a](https://snowtrace.io/address/0xAf76856f788519704a9411839614e144FEd52d8a/) |
 
 ## Key Features
 
