@@ -127,7 +127,6 @@ For the spark-rewards cumulative claims to function properly, the Merkle tree is
      - Expected Merkle root.
      - Merkle proof.
 
-
 ## Merkle Tree Script
 
 The `generateMerkleTree.js` script generates a Merkle Tree from a rewards JSON input file and outputs the tree structure, proofs, and root to a specified filepath. You can find example input files in the `merkle-tree-scripts/input/` folder to see the required formatting of the input. To generate randomized input for testing, see the Generate Input Script section below.
@@ -165,3 +164,19 @@ The `generateInput.js` script is used to generate large input files of randomize
    cd merkle-tree-scripts
    node generateInput.js
    ```
+
+## Audits
+
+Audit reports are hosted on the auditors' public portfolio pages:
+
+| Auditor | Report | Date |
+| --- | --- | --- |
+| ChainSecurity | [SparkRewards smart contracts](https://www.chainsecurity.com/security-audit/sparkrewards/) | 2025-02-25 |
+
+ChainSecurity reports are cumulative: each portfolio page hosts the latest version of the report, which covers all previously reviewed versions.
+
+### Other reports
+
+The following reports are not available on an auditor portfolio page and are kept in this repository:
+
+- [Cantina (20250227-cantina-audit.pdf)](./audits/20250227-cantina-audit.pdf)
